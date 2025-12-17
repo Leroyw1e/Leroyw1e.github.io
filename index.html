@@ -1,1 +1,60 @@
-Hello. This works.
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Enter Code</title>
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: sans-serif;
+      text-align: center;
+      margin-top: 50px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      background-color: #1e88e5;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1565c0;
+    }
+    #secretMessage {
+      margin-top: 20px;
+      font-size: 28px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Enter 4-digit code</h1>
+  <input type="text" id="codeInput" maxlength="4" placeholder="Enter code">
+  <button onclick="checkCode()">Submit</button>
+
+  <div id="secretMessage"></div>
+
+  <script>
+    function checkCode() {
+      const code = document.getElementById('codeInput').value;
+      const secretDiv = document.getElementById('secretMessage');
+      if(code === "1122") {
+        secretDiv.textContent = "6767";
+      } else {
+        secretDiv.textContent = "";
+        alert("Wrong code!");
+      }
+    }
+  </script>
+</body>
+</html>
