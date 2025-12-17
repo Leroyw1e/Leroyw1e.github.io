@@ -1,60 +1,112 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Enter Code</title>
-  <style>
-    body {
-      background-color: #121212;
-      color: #ffffff;
-      font-family: sans-serif;
-      text-align: center;
-      margin-top: 50px;
-    }
-    input {
-      padding: 10px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      margin-right: 10px;
-    }
-    button {
-      padding: 10px 15px;
-      font-size: 16px;
-      border-radius: 5px;
-      border: none;
-      background-color: #1e88e5;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #1565c0;
-    }
-    #secretMessage {
-      margin-top: 20px;
-      font-size: 28px;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Clicker Game</title>
+<style>
+  body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; margin-top: 50px; }
+  input { padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px; }
+  button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: none; background-color: #1e88e5; color: white; cursor: pointer; }
+  button:hover { background-color: #1565c0; }
+  #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
+  #clickerGame { display: none; margin-top: 20px; }
+  #clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
+  #upgrades { margin-top: 20px; }
+  .upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
+  .upgradeBtn:hover { background-color: #1e8449; }
+</style>
 </head>
 <body>
-  <h1>Enter 4-digit code</h1>
-  <input type="text" id="codeInput" maxlength="4" placeholder="Enter code">
-  <button onclick="checkCode()">Submit</button>
 
-  <div id="secretMessage"></div>
+<h1>Enter 4-digit code</h1>
+<input type="text" id="codeInput" maxlength="4" placeholder="Enter code">
+<button onclick="checkCode()">Submit</button>
 
-  <script>
-    function checkCode() {
-      const code = document.getElementById('codeInput').value;
-      const secretDiv = document.getElementById('secretMessage');
-      if(code === "1122") {
-        secretDiv.textContent = "Leroy Jenkins's website";
-      } else {
-        secretDiv.textContent = "";
-        alert("Wrong code!");
-      }
-    }
-  </script>
+<div id="secretMessage"></div>
+
+<div id="clickerGame">
+  <h2>Cookie Clicker Game</h2>
+  <p>Cookies: <span id="score">0</span></p>
+  <button id="clickBtn">🍪 Click Me!</button>
+  <div id="upgrades">
+    <h3>Upgrades</h3>
+    <button class="upgradeBtn" onclick="buyUpgrade(1, 10)">Auto Clicker +1/sec (10 cookies)</button>
+    <button class="upgradeBtn" onclick="buyUpgrade(5, 50)">Auto Clicker +5/sec (50 cookies)</button>
+    <button class="upgradeBtn" onclick="buyClickPower(1, 25)">Click +1 per click (25 cookies)</button>
+  </div>
+</div>
+
+<script>
+const secretMessage = document.getElementById('secretMessage');
+const clickerGame = document.getElementById('clickerGame');
+const scoreDisplay = document.getElementById('score');
+const clickBtn = document.getElementById('clickBtn');
+
+let score = 0;
+let autoClick = 0;
+let clickPower = 1;
+
+// Code check
+function checkCode() {
+  const code = document.getElementById('codeInput').value;
+  if(code === "1122") {
+    clickerGame.style.display = "none";
+    secretMessage.textContent = "Leroy Jenkins's website";
+  } else if(code === "2012") {
+    secretMessage.textContent = "";
+    clickerGame.style.display = "block";
+    score = 0;
+    autoClick = 0;
+    clickPower = 1;
+    updateScore();
+  } else {
+    alert("Wrong code!");
+    secretMessage.textContent = "";
+    clickerGame.style.display = "none";
+  }
+}
+
+// Click cookie
+clickBtn.addEventListener('click', () => {
+  score += clickPower;
+  updateScore();
+});
+
+// Update score display
+function updateScore() {
+  scoreDisplay.textContent = score;
+}
+
+// Buy auto-click upgrades
+function buyUpgrade(amount, cost) {
+  if(score >= cost){
+    score -= cost;
+    autoClick += amount;
+    updateScore();
+  } else {
+    alert("Not enough cookies!");
+  }
+}
+
+// Buy click power upgrades
+function buyClickPower(amount, cost) {
+  if(score >= cost){
+    score -= cost;
+    clickPower += amount;
+    updateScore();
+  } else {
+    alert("Not enough cookies!");
+  }
+}
+
+// Auto clicker loop
+setInterval(() => {
+  if(autoClick > 0){
+    score += autoClick;
+    updateScore();
+  }
+}, 1000);
+</script>
+
 </body>
 </html>
