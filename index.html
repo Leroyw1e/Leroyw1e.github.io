@@ -2,18 +2,19 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Clicker Game</title>
+<title>Code Portal</title>
 <style>
   body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; margin-top: 50px; }
   input { padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px; }
   button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: none; background-color: #1e88e5; color: white; cursor: pointer; }
   button:hover { background-color: #1565c0; }
   #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
-  #clickerGame { display: none; margin-top: 20px; }
+  #clickerGame, #codesList { display: none; margin-top: 20px; }
   #clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
   #upgrades { margin-top: 20px; }
   .upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
   .upgradeBtn:hover { background-color: #1e8449; }
+  ul { text-align: left; display: inline-block; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -24,6 +25,16 @@
 
 <div id="secretMessage"></div>
 
+<!-- Codes list -->
+<div id="codesList">
+  <h2>All Codes</h2>
+  <ul>
+    <li>1122 → Shows “Leroy Jenkins's website”</li>
+    <li>2024 → Opens Cookie Clicker game</li>
+  </ul>
+</div>
+
+<!-- Cookie Clicker -->
 <div id="clickerGame">
   <h2>Cookie Clicker Game</h2>
   <p>Cookies: <span id="score">0</span></p>
@@ -39,6 +50,7 @@
 <script>
 const secretMessage = document.getElementById('secretMessage');
 const clickerGame = document.getElementById('clickerGame');
+const codesList = document.getElementById('codesList');
 const scoreDisplay = document.getElementById('score');
 const clickBtn = document.getElementById('clickBtn');
 
@@ -46,23 +58,35 @@ let score = 0;
 let autoClick = 0;
 let clickPower = 1;
 
-// Code check
 function checkCode() {
   const code = document.getElementById('codeInput').value;
+  // 1122 → Website
   if(code === "1122") {
-    clickerGame.style.display = "none";
     secretMessage.textContent = "Leroy Jenkins's website";
-  } else if(code === "2012") {
+    clickerGame.style.display = "none";
+    codesList.style.display = "none";
+  }
+  // 2012 → List of codes
+  else if(code === "2012") {
+    codesList.style.display = "block";
     secretMessage.textContent = "";
+    clickerGame.style.display = "none";
+  }
+  // 2024 → Cookie Clicker
+  else if(code === "2024") {
+    secretMessage.textContent = "";
+    codesList.style.display = "none";
     clickerGame.style.display = "block";
     score = 0;
     autoClick = 0;
     clickPower = 1;
     updateScore();
-  } else {
+  }
+  else {
     alert("Wrong code!");
     secretMessage.textContent = "";
     clickerGame.style.display = "none";
+    codesList.style.display = "none";
   }
 }
 
@@ -72,7 +96,6 @@ clickBtn.addEventListener('click', () => {
   updateScore();
 });
 
-// Update score display
 function updateScore() {
   scoreDisplay.textContent = score;
 }
