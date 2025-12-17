@@ -2,40 +2,40 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Code Portal</title>
+<title>Leroy's Code Portal</title>
 <link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
 <style>
-  body { 
-    background: #121212; 
-    color: #fff; 
-    font-family: 'Fira Sans', sans-serif; 
-    text-align: center; 
-    margin-top: 50px; 
-  }
-  input { 
-    padding: 10px; 
-    font-size: 16px; 
-    border-radius: 5px; 
-    border: none; 
-    margin-right: 10px; 
-  }
-  button { 
-    padding: 10px 15px; 
-    font-size: 16px; 
-    border-radius: 5px; 
-    border: none; 
-    background-color: #1e88e5; 
-    color: white; 
-    cursor: pointer; 
-  }
-  button:hover { background-color: #1565c0; }
-  #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
-  #clickerGame, #codesList, #visitorCounter { display: none; margin-top: 20px; }
-  #clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
-  #upgrades { margin-top: 20px; }
-  .upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
-  .upgradeBtn:hover { background-color: #1e8449; }
-  ul { text-align: left; display: inline-block; margin-top: 10px; }
+body { 
+  background: #121212; 
+  color: #fff; 
+  font-family: 'Fira Sans', sans-serif; 
+  text-align: center; 
+  margin-top: 50px; 
+}
+input { 
+  padding: 10px; 
+  font-size: 16px; 
+  border-radius: 5px; 
+  border: none; 
+  margin-right: 10px; 
+}
+button { 
+  padding: 10px 15px; 
+  font-size: 16px; 
+  border-radius: 5px; 
+  border: none; 
+  background-color: #1e88e5; 
+  color: white; 
+  cursor: pointer; 
+}
+button:hover { background-color: #1565c0; }
+#secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
+#clickerGame, #codesList, #visitorCounter, #snakeGame, #flapBirdGame, #publicCounter { display: none; margin-top: 20px; }
+#clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
+.upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
+.upgradeBtn:hover { background-color: #1e8449; }
+ul { text-align: left; display: inline-block; margin-top: 10px; }
+canvas { background: #222; margin-top: 10px; border: 2px solid #fff; }
 </style>
 </head>
 <body>
@@ -46,30 +46,31 @@
 
 <div id="secretMessage"></div>
 
-<!-- Codes list -->
 <div id="codesList">
   <h2>All Codes</h2>
   <ul>
     <li>1122 → Shows “Leroy’s website”</li>
     <li>1234 → it's not that simple</li>
     <li>2012 → List of all codes</li>
-    <li>2024 → Opens Cookie Clicker game</li>
+    <li>2024 → Cookie Clicker</li>
     <li>5556 → Visitor counter</li>
     <li>6767 → haha very funny</li>
     <li>0000 → Error code: NULL</li>
+    <li>4545 → Snake game</li>
+    <li>3737 → Flappy Bird game</li>
+    <li>5239 → Public counter</li>
   </ul>
 </div>
 
 <!-- Cookie Clicker -->
 <div id="clickerGame">
   <h2>Cookie Clicker Game</h2>
-  <p>Cookies: <span id="score">0</span></p>
   <button id="clickBtn">🍪 Click Me!</button>
   <div id="upgrades">
-    <h3>Upgrades</h3>
     <button class="upgradeBtn" onclick="buyUpgrade(1, 10)">Auto Clicker +1/sec (10 cookies)</button>
     <button class="upgradeBtn" onclick="buyUpgrade(5, 50)">Auto Clicker +5/sec (50 cookies)</button>
     <button class="upgradeBtn" onclick="buyClickPower(1, 25)">Click +1 per click (25 cookies)</button>
+    <p>Cookies: <span id="score">0</span></p>
   </div>
 </div>
 
@@ -79,130 +80,153 @@
   <p>You have visited this page <span id="visits">0</span> times.</p>
 </div>
 
+<!-- Snake Game -->
+<div id="snakeGame">
+  <h2>Snake Game</h2>
+  <p>Use arrow keys to move the snake.</p>
+  <canvas id="snakeCanvas" width="400" height="400"></canvas>
+  <p>Score: <span id="snakeScore">0</span></p>
+</div>
+
+<!-- Flappy Bird Game -->
+<div id="flapBirdGame">
+  <h2>Flappy Bird</h2>
+  <canvas id="flapCanvas" width="400" height="600"></canvas>
+  <p>Score: <span id="flapScore">0</span></p>
+  <p>Press SPACE to flap!</p>
+</div>
+
+<!-- Public Counter -->
+<div id="publicCounter">
+  <h2>Public Counter</h2>
+  <p>Counter: <span id="publicCount">0</span></p>
+  <button onclick="incrementPublicCounter()">Add 1</button>
+</div>
+
 <script>
+// ===== Common variables =====
 const secretMessage = document.getElementById('secretMessage');
 const clickerGame = document.getElementById('clickerGame');
 const codesList = document.getElementById('codesList');
 const visitorCounter = document.getElementById('visitorCounter');
-const scoreDisplay = document.getElementById('score');
-const clickBtn = document.getElementById('clickBtn');
+const snakeGame = document.getElementById('snakeGame');
+const flapBirdGame = document.getElementById('flapBirdGame');
+const publicCounter = document.getElementById('publicCounter');
 
-let score = 0;
-let autoClick = 0;
-let clickPower = 1;
+function hideAllGames(skipInput=false){
+  clickerGame.style.display = "none";
+  snakeGame.style.display = "none";
+  visitorCounter.style.display = "none";
+  flapBirdGame.style.display = "none";
+  publicCounter.style.display = "none";
+  if(!skipInput) codesList.style.display = "none";
+  secretMessage.textContent = skipInput ? secretMessage.textContent : "";
+}
 
+// ===== Check codes =====
 function checkCode() {
   const code = document.getElementById('codeInput').value;
-  // 1122 → Leroy's website
-  if(code === "1122") {
-    secretMessage.textContent = "Leroy’s website";
-    clickerGame.style.display = "none";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
-  // 1234 → Not that simple
-  else if(code === "1234") {
-    secretMessage.textContent = "it's not that simple";
-    clickerGame.style.display = "none";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
-  // 2012 → List of codes
-  else if(code === "2012") {
-    codesList.style.display = "block";
-    secretMessage.textContent = "";
-    clickerGame.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
-  // 2024 → Cookie Clicker
-  else if(code === "2024") {
-    secretMessage.textContent = "";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-    clickerGame.style.display = "block";
-    score = 0;
-    autoClick = 0;
-    clickPower = 1;
-    updateScore();
-  }
-  // 5556 → Visitor Counter
-  else if(code === "5556") {
-    secretMessage.textContent = "";
-    codesList.style.display = "none";
-    clickerGame.style.display = "none";
-    visitorCounter.style.display = "block";
-    updateVisitorCounter();
-  }
-  // 6767 → Funny message
-  else if(code === "6767") {
-    secretMessage.textContent = "haha very funny";
-    clickerGame.style.display = "none";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
-  // 0000 → Error code
-  else if(code === "0000") {
-    secretMessage.textContent = "Error code: NULL";
-    clickerGame.style.display = "none";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
-  else {
-    alert("Wrong code!");
-    secretMessage.textContent = "";
-    clickerGame.style.display = "none";
-    codesList.style.display = "none";
-    visitorCounter.style.display = "none";
-  }
+  hideAllGames(true);
+
+  if(code==="1122") secretMessage.textContent="Leroy’s website";
+  else if(code==="1234") secretMessage.textContent="it's not that simple";
+  else if(code==="2012") codesList.style.display="block";
+  else if(code==="2024") { clickerGame.style.display="block"; initClicker(); }
+  else if(code==="5556") { visitorCounter.style.display="block"; updateVisitorCounter(); }
+  else if(code==="6767") secretMessage.textContent="haha very funny";
+  else if(code==="0000") secretMessage.textContent="Error code: NULL";
+  else if(code==="4545") { snakeGame.style.display="block"; initSnake(); }
+  else if(code==="3737") { flapBirdGame.style.display="block"; initFlapBird(); }
+  else if(code==="5239") { publicCounter.style.display="block"; updatePublicCounter(); }
+  else alert("Wrong code!");
 }
 
-// Click cookie
-clickBtn.addEventListener('click', () => {
-  score += clickPower;
-  updateScore();
-});
+// ===== Cookie Clicker =====
+let score=0, autoClick=0, clickPower=1;
+const scoreDisplay = document.getElementById('score');
+document.getElementById('clickBtn').addEventListener('click',()=>{score+=clickPower;updateScore();});
+function updateScore(){scoreDisplay.textContent=score;}
+function buyUpgrade(a,c){if(score>=c){score-=c;autoClick+=a;updateScore();} else alert("Not enough cookies!");}
+function buyClickPower(a,c){if(score>=c){score-=c;clickPower+=a;updateScore();} else alert("Not enough cookies!");}
+function initClicker(){score=0;autoClick=0;clickPower=1;updateScore();}
+setInterval(()=>{if(autoClick>0){score+=autoClick;updateScore();}},1000);
 
-function updateScore() {
-  scoreDisplay.textContent = score;
-}
-
-// Buy auto-click upgrades
-function buyUpgrade(amount, cost) {
-  if(score >= cost){
-    score -= cost;
-    autoClick += amount;
-    updateScore();
-  } else {
-    alert("Not enough cookies!");
-  }
-}
-
-// Buy click power upgrades
-function buyClickPower(amount, cost) {
-  if(score >= cost){
-    score -= cost;
-    clickPower += amount;
-    updateScore();
-  } else {
-    alert("Not enough cookies!");
-  }
-}
-
-// Auto clicker loop
-setInterval(() => {
-  if(autoClick > 0){
-    score += autoClick;
-    updateScore();
-  }
-}, 1000);
-
-// Visitor counter using localStorage (per browser)
-function updateVisitorCounter() {
-  let visits = localStorage.getItem("visits");
-  if(!visits) visits = 0;
+// ===== Visitor Counter =====
+function updateVisitorCounter(){
+  let visits = localStorage.getItem("visits") || 0;
   visits = parseInt(visits) + 1;
   localStorage.setItem("visits", visits);
-  document.getElementById('visits').textContent = visits;
+  document.getElementById('visits').textContent=visits;
+}
+
+// ===== Snake Game =====
+const snakeCanvas=document.getElementById('snakeCanvas');
+const snakeCtx=snakeCanvas.getContext('2d');
+const snakeScoreDisplay=document.getElementById('snakeScore');
+let snake=[], snakeLength=5, direction='right', food={}, snakeScore=0, snakeSpeed=100, snakeInterval;
+function initSnake(){
+  snake=[]; snakeLength=5; direction='right'; snakeScore=0; snakeScoreDisplay.textContent=snakeScore;
+  for(let i=snakeLength-1;i>=0;i--) snake.push({x:i,y:0});
+  placeFood(); if(snakeInterval) clearInterval(snakeInterval);
+  snakeInterval=setInterval(drawSnake,snakeSpeed);
+}
+function placeFood(){food={x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)};}
+document.addEventListener('keydown',e=>{if(snakeGame.style.display==="block"){if(e.key==="ArrowUp" && direction!="down") direction='up';if(e.key==="ArrowDown" && direction!="up") direction='down';}});
+function drawSnake(){
+  snakeCtx.fillStyle="#222";snakeCtx.fillRect(0,0,400,400);
+  let headX=snake[0].x, headY=snake[0].y;
+  if(direction==='right') headX++; else if(direction==='left') headX--; else if(direction==='up') headY--; else if(direction==='down') headY++;
+  if(headX<0||headY<0||headX>=20||headY>=20||collision(headX,headY)){snakeInterval && clearInterval(snakeInterval); return;}
+  if(headX===food.x&&headY===food.y){snakeScore++;snakeScoreDisplay.textContent=snakeScore;snake.unshift({x:headX,y:headY});placeFood();}
+  else snake.pop(),snake.unshift({x:headX,y:headY});
+  for(let i=0;i<snake.length;i++){snakeCtx.fillStyle=i===0?"#0f0":"#fff";snakeCtx.fillRect(snake[i].x*20,snake[i].y*20,20,20);}
+  snakeCtx.fillStyle="red";snakeCtx.fillRect(food.x*20,food.y*20,20,20);
+}
+function collision(x,y){for(let i=0;i<snake.length;i++){if(snake[i].x===x&&snake[i].y===y) return true;} return false;}
+
+// ===== Flappy Bird =====
+const flapCanvas = document.getElementById('flapCanvas');
+const flapCtx = flapCanvas.getContext('2d');
+const flapScoreDisplay = document.getElementById('flapScore');
+let flapY, flapVelocity, flapPipes, flapScore, flapInterval, flapAlive;
+function initFlapBird(){
+  flapY=300; flapVelocity=0; flapPipes=[]; flapScore=0; flapScoreDisplay.textContent=flapScore; flapAlive=true;
+  if(flapInterval) clearInterval(flapInterval);
+  flapPipes.push({x:400, gapY:Math.random()*300+100});
+  flapInterval=setInterval(drawFlapBird,20);
+}
+document.addEventListener('keydown', e=>{
+  if(flapBirdGame.style.display==="block" && e.code==="Space" && flapAlive){ flapVelocity=-8; }
+});
+function drawFlapBird(){
+  if(!flapAlive) return;
+  flapCtx.fillStyle="#222"; flapCtx.fillRect(0,0,400,600);
+  flapVelocity += 0.5; flapY += flapVelocity;
+  flapCtx.fillStyle="#f39c12"; flapCtx.fillRect(50, flapY, 30, 30);
+  for(let i=0;i<flapPipes.length;i++){
+    let pipe=flapPipes[i];
+    flapCtx.fillStyle="#27ae60";
+    flapCtx.fillRect(pipe.x,0,50,pipe.gapY-75);
+    flapCtx.fillRect(pipe.x,pipe.gapY+75,50,600);
+    if(50+30>pipe.x && 50<pipe.x+50 && (flapY<pipe.gapY-75 || flapY+30>pipe.gapY+75) || flapY>600 || flapY<0){ flapAlive=false; return; }
+    if(pipe.x+50===50) flapScore++; flapScoreDisplay.textContent=flapScore;
+  }
+  if(flapPipes[flapPipes.length-1].x<200) flapPipes.push({x:400, gapY:Math.random()*300+100});
+  if(flapPipes[0].x<-50) flapPipes.shift();
+  flapPipes.forEach(pipe=>pipe.x-=3);
+}
+
+// ===== Public Counter =====
+const publicCountDisplay = document.getElementById('publicCount');
+function updatePublicCounter(){
+  let count = localStorage.getItem("publicCount") || 0;
+  publicCountDisplay.textContent = count;
+}
+function incrementPublicCounter(){
+  let count = localStorage.getItem("publicCount") || 0;
+  count = parseInt(count)+1;
+  localStorage.setItem("publicCount", count);
+  publicCountDisplay.textContent = count;
 }
 </script>
 
