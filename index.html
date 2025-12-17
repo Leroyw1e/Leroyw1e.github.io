@@ -9,7 +9,7 @@
   button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: none; background-color: #1e88e5; color: white; cursor: pointer; }
   button:hover { background-color: #1565c0; }
   #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
-  #clickerGame, #codesList { display: none; margin-top: 20px; }
+  #clickerGame, #codesList, #visitorCounter { display: none; margin-top: 20px; }
   #clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
   #upgrades { margin-top: 20px; }
   .upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
@@ -31,6 +31,7 @@
   <ul>
     <li>1122 → Shows “Leroy Jenkins's website”</li>
     <li>2024 → Opens Cookie Clicker game</li>
+    <li>5556 → Visitor counter</li>
   </ul>
 </div>
 
@@ -47,10 +48,17 @@
   </div>
 </div>
 
+<!-- Visitor counter -->
+<div id="visitorCounter">
+  <h2>Website Visitor Counter</h2>
+  <p>You have visited this page <span id="visits">0</span> times.</p>
+</div>
+
 <script>
 const secretMessage = document.getElementById('secretMessage');
 const clickerGame = document.getElementById('clickerGame');
 const codesList = document.getElementById('codesList');
+const visitorCounter = document.getElementById('visitorCounter');
 const scoreDisplay = document.getElementById('score');
 const clickBtn = document.getElementById('clickBtn');
 
@@ -65,28 +73,40 @@ function checkCode() {
     secretMessage.textContent = "Leroy Jenkins's website";
     clickerGame.style.display = "none";
     codesList.style.display = "none";
+    visitorCounter.style.display = "none";
   }
   // 2012 → List of codes
   else if(code === "2012") {
     codesList.style.display = "block";
     secretMessage.textContent = "";
     clickerGame.style.display = "none";
+    visitorCounter.style.display = "none";
   }
   // 2024 → Cookie Clicker
   else if(code === "2024") {
     secretMessage.textContent = "";
     codesList.style.display = "none";
+    visitorCounter.style.display = "none";
     clickerGame.style.display = "block";
     score = 0;
     autoClick = 0;
     clickPower = 1;
     updateScore();
   }
+  // 5556 → Visitor Counter
+  else if(code === "5556") {
+    secretMessage.textContent = "";
+    codesList.style.display = "none";
+    clickerGame.style.display = "none";
+    visitorCounter.style.display = "block";
+    updateVisitorCounter();
+  }
   else {
     alert("Wrong code!");
     secretMessage.textContent = "";
     clickerGame.style.display = "none";
     codesList.style.display = "none";
+    visitorCounter.style.display = "none";
   }
 }
 
@@ -129,6 +149,15 @@ setInterval(() => {
     updateScore();
   }
 }, 1000);
+
+// Visitor counter using localStorage (per browser)
+function updateVisitorCounter() {
+  let visits = localStorage.getItem("visits");
+  if(!visits) visits = 0;
+  visits = parseInt(visits) + 1;
+  localStorage.setItem("visits", visits);
+  document.getElementById('visits').textContent = visits;
+}
 </script>
 
 </body>
