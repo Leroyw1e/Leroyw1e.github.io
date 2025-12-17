@@ -3,10 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <title>Code Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Sans&display=swap" rel="stylesheet">
 <style>
-  body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; margin-top: 50px; }
-  input { padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px; }
-  button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: none; background-color: #1e88e5; color: white; cursor: pointer; }
+  body { 
+    background: #121212; 
+    color: #fff; 
+    font-family: 'Fira Sans', sans-serif; 
+    text-align: center; 
+    margin-top: 50px; 
+  }
+  input { 
+    padding: 10px; 
+    font-size: 16px; 
+    border-radius: 5px; 
+    border: none; 
+    margin-right: 10px; 
+  }
+  button { 
+    padding: 10px 15px; 
+    font-size: 16px; 
+    border-radius: 5px; 
+    border: none; 
+    background-color: #1e88e5; 
+    color: white; 
+    cursor: pointer; 
+  }
   button:hover { background-color: #1565c0; }
   #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
   #clickerGame, #codesList, #visitorCounter { display: none; margin-top: 20px; }
@@ -30,8 +51,12 @@
   <h2>All Codes</h2>
   <ul>
     <li>1122 → Shows “Leroy’s website”</li>
+    <li>1234 → it's not that simple</li>
+    <li>2012 → List of all codes</li>
     <li>2024 → Opens Cookie Clicker game</li>
     <li>5556 → Visitor counter</li>
+    <li>6767 → haha very funny</li>
+    <li>0000 → Error code: NULL</li>
   </ul>
 </div>
 
@@ -75,6 +100,13 @@ function checkCode() {
     codesList.style.display = "none";
     visitorCounter.style.display = "none";
   }
+  // 1234 → Not that simple
+  else if(code === "1234") {
+    secretMessage.textContent = "it's not that simple";
+    clickerGame.style.display = "none";
+    codesList.style.display = "none";
+    visitorCounter.style.display = "none";
+  }
   // 2012 → List of codes
   else if(code === "2012") {
     codesList.style.display = "block";
@@ -100,6 +132,20 @@ function checkCode() {
     clickerGame.style.display = "none";
     visitorCounter.style.display = "block";
     updateVisitorCounter();
+  }
+  // 6767 → Funny message
+  else if(code === "6767") {
+    secretMessage.textContent = "haha very funny";
+    clickerGame.style.display = "none";
+    codesList.style.display = "none";
+    visitorCounter.style.display = "none";
+  }
+  // 0000 → Error code
+  else if(code === "0000") {
+    secretMessage.textContent = "Error code: NULL";
+    clickerGame.style.display = "none";
+    codesList.style.display = "none";
+    visitorCounter.style.display = "none";
   }
   else {
     alert("Wrong code!");
