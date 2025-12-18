@@ -30,7 +30,7 @@ button {
 }
 button:hover { background-color: #1565c0; }
 #secretMessage { margin-top: 20px; font-size: 28px; font-weight: bold; }
-#clickerGame, #codesList, #visitorCounter, #snakeGame, #flapBirdGame, #publicCounter { display: none; margin-top: 20px; }
+#clickerGame, #codesList, #visitorCounter, #snakeGame, #flapBirdGame, #publicCounter, #chessGame, #sharePage { display: none; margin-top: 20px; }
 #clickBtn { padding: 40px; font-size: 24px; border-radius: 50%; margin-top: 10px; background-color: #f39c12; color: #fff; }
 .upgradeBtn { margin: 5px; padding: 10px; border-radius: 5px; border: none; cursor: pointer; background-color: #27ae60; color: #fff; }
 .upgradeBtn:hover { background-color: #1e8449; }
@@ -59,6 +59,8 @@ canvas { background: #222; margin-top: 10px; border: 2px solid #fff; }
     <li>4545 → Snake game</li>
     <li>3737 → Flappy Bird game</li>
     <li>5239 → Public counter</li>
+    <li>1590 → Two-player Chess</li>
+    <li>3927 → Share Page</li>
   </ul>
 </div>
 
@@ -103,6 +105,27 @@ canvas { background: #222; margin-top: 10px; border: 2px solid #fff; }
   <button onclick="incrementPublicCounter()">Add 1</button>
 </div>
 
+<!-- Chess Game -->
+<div id="chessGame">
+  <h2>Two-Player Chess</h2>
+  <canvas id="chessCanvas" width="480" height="480"></canvas>
+  <p>Click a piece, then click the destination. White moves first.</p>
+</div>
+
+<!-- Share Page -->
+<div id="sharePage">
+  <h2>Share This Website</h2>
+  <p>Copy or share the link with friends!</p>
+  <input type="text" id="shareURL" value="https://your-website.com" readonly style="width:300px; padding:5px;">
+  <button onclick="copyURL()">Copy Link</button>
+  <div style="margin-top:10px;">
+    <button onclick="shareFacebook()">Share on Facebook</button>
+    <button onclick="shareTwitter()">Share on Twitter</button>
+    <button onclick="shareWhatsApp()">Share on WhatsApp</button>
+  </div>
+  <p id="shareMessage" style="margin-top:10px; font-weight:bold;"></p>
+</div>
+
 <script>
 // ===== Common variables =====
 const secretMessage = document.getElementById('secretMessage');
@@ -112,6 +135,8 @@ const visitorCounter = document.getElementById('visitorCounter');
 const snakeGame = document.getElementById('snakeGame');
 const flapBirdGame = document.getElementById('flapBirdGame');
 const publicCounter = document.getElementById('publicCounter');
+const chessGame = document.getElementById('chessGame');
+const sharePage = document.getElementById('sharePage');
 
 function hideAllGames(skipInput=false){
   clickerGame.style.display = "none";
@@ -119,6 +144,8 @@ function hideAllGames(skipInput=false){
   visitorCounter.style.display = "none";
   flapBirdGame.style.display = "none";
   publicCounter.style.display = "none";
+  chessGame.style.display = "none";
+  sharePage.style.display = "none";
   if(!skipInput) codesList.style.display = "none";
   secretMessage.textContent = skipInput ? secretMessage.textContent : "";
 }
@@ -138,6 +165,8 @@ function checkCode() {
   else if(code==="4545") { snakeGame.style.display="block"; initSnake(); }
   else if(code==="3737") { flapBirdGame.style.display="block"; initFlapBird(); }
   else if(code==="5239") { publicCounter.style.display="block"; updatePublicCounter(); }
+  else if(code==="1590") { chessGame.style.display="block"; initChess(); }
+  else if(code==="3927") { sharePage.style.display="block"; }
   else alert("Wrong code!");
 }
 
@@ -242,6 +271,90 @@ function incrementPublicCounter(){
   count = parseInt(count)+1;
   localStorage.setItem("publicCount", count);
   publicCountDisplay.textContent = count;
+}
+
+// ===== Chess Game =====
+const chessCanvas = document.getElementById('chessCanvas');
+const chessCtx = chessCanvas.getContext('2d');
+const tileSize = 60;
+let chessBoard = [];
+let selectedPiece = null;
+let turn = 'white';
+
+const initialBoard = [
+  ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+  ['bP','bP','bP','bP','bP','bP','bP','bP'],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['','','','','','','',''],
+  ['wP','wP','wP','wP','wP','wP','wP','wP'],
+  ['wR','wN','wB','wQ','wK','wB','wN','wR']
+];
+
+function initChess(){
+  chessBoard = JSON.parse(JSON.stringify(initialBoard));
+  drawChess();
+}
+
+function drawChess(){
+  chessCtx.clearRect(0,0,480,480);
+  for(let y=0;y<8;y++){
+    for(let x=0;x<8;x++){
+      chessCtx.fillStyle=(x+y)%2===0?'#eee':'#777';
+      chessCtx.fillRect(x*tileSize,y*tileSize,tileSize,tileSize);
+      if(chessBoard[y][x]){
+        chessCtx.fillStyle=chessBoard[y][x][0]==='w'?'#fff':'#000';
+        chessCtx.font = '36px Arial';
+        chessCtx.textAlign='center';
+        chessCtx.textBaseline='middle';
+        const pieceLetter = chessBoard[y][x][1];
+        chessCtx.fillText(pieceLetter,pixelCenter(x),pixelCenter(y));
+      }
+    }
+  }
+}
+
+function pixelCenter(n){ return n*tileSize + tileSize/2; }
+
+chessCanvas.addEventListener('click', e=>{
+  const rect = chessCanvas.getBoundingClientRect();
+  const x = Math.floor((e.clientX-rect.left)/tileSize);
+  const y = Math.floor((e.clientY-rect.top)/tileSize);
+
+  const piece = chessBoard[y][x];
+  if(selectedPiece){
+    if(piece==='' || piece[0] !== turn[0]){
+      chessBoard[y][x] = selectedPiece.piece;
+      chessBoard[selectedPiece.y][selectedPiece.x] = '';
+      turn = turn==='white'?'black':'white';
+      selectedPiece=null;
+      drawChess();
+    } else {
+      selectedPiece={x,y,piece};
+    }
+  } else if(piece && piece[0]===turn[0]){
+    selectedPiece={x,y,piece};
+  }
+});
+
+// ===== Share Page Functions =====
+function copyURL(){
+  const urlField = document.getElementById('shareURL');
+  urlField.select();
+  urlField.setSelectionRange(0,99999);
+  navigator.clipboard.writeText(urlField.value).then(()=>{
+    document.getElementById('shareMessage').textContent = "Link copied to clipboard!";
+  });
+}
+function shareFacebook(){
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(document.getElementById('shareURL').value)}`, '_blank');
+}
+function shareTwitter(){
+  window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(document.getElementById('shareURL').value)}`, '_blank');
+}
+function shareWhatsApp(){
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(document.getElementById('shareURL').value)}`, '_blank');
 }
 </script>
 
