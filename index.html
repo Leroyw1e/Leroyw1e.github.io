@@ -171,7 +171,14 @@ function initSnake(){
   snakeInterval=setInterval(drawSnake,snakeSpeed);
 }
 function placeFood(){food={x:Math.floor(Math.random()*20),y:Math.floor(Math.random()*20)};}
-document.addEventListener('keydown',e=>{if(snakeGame.style.display==="block"){if(e.key==="ArrowUp" && direction!="down") direction='up';if(e.key==="ArrowDown" && direction!="up") direction='down';}});
+document.addEventListener('keydown', e => {
+  if(snakeGame.style.display==="block"){
+    if(e.key==="ArrowUp" && direction!="down") direction='up';
+    else if(e.key==="ArrowDown" && direction!="up") direction='down';
+    else if(e.key==="ArrowLeft" && direction!="right") direction='left';
+    else if(e.key==="ArrowRight" && direction!="left") direction='right';
+  }
+});
 function drawSnake(){
   snakeCtx.fillStyle="#222";snakeCtx.fillRect(0,0,400,400);
   let headX=snake[0].x, headY=snake[0].y;
@@ -192,7 +199,7 @@ let flapY, flapVelocity, flapPipes, flapScore, flapInterval, flapAlive;
 function initFlapBird(){
   flapY=300; flapVelocity=0; flapPipes=[]; flapScore=0; flapScoreDisplay.textContent=flapScore; flapAlive=true;
   if(flapInterval) clearInterval(flapInterval);
-  flapPipes.push({x:400, gapY:Math.random()*300+100});
+  flapPipes.push({x:400, gapY:Math.random()*300+100, scored:false});
   flapInterval=setInterval(drawFlapBird,20);
 }
 document.addEventListener('keydown', e=>{
@@ -203,15 +210,23 @@ function drawFlapBird(){
   flapCtx.fillStyle="#222"; flapCtx.fillRect(0,0,400,600);
   flapVelocity += 0.5; flapY += flapVelocity;
   flapCtx.fillStyle="#f39c12"; flapCtx.fillRect(50, flapY, 30, 30);
+
   for(let i=0;i<flapPipes.length;i++){
     let pipe=flapPipes[i];
     flapCtx.fillStyle="#27ae60";
     flapCtx.fillRect(pipe.x,0,50,pipe.gapY-75);
     flapCtx.fillRect(pipe.x,pipe.gapY+75,50,600);
+
     if(50+30>pipe.x && 50<pipe.x+50 && (flapY<pipe.gapY-75 || flapY+30>pipe.gapY+75) || flapY>600 || flapY<0){ flapAlive=false; return; }
-    if(pipe.x+50===50) flapScore++; flapScoreDisplay.textContent=flapScore;
+
+    if(pipe.x + 50 <= 50 && !pipe.scored){
+      flapScore++;
+      flapScoreDisplay.textContent = flapScore;
+      pipe.scored = true;
+    }
   }
-  if(flapPipes[flapPipes.length-1].x<200) flapPipes.push({x:400, gapY:Math.random()*300+100});
+
+  if(flapPipes[flapPipes.length-1].x<200) flapPipes.push({x:400, gapY:Math.random()*300+100, scored:false});
   if(flapPipes[0].x<-50) flapPipes.shift();
   flapPipes.forEach(pipe=>pipe.x-=3);
 }
