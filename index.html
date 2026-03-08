@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARCADE VAULT</title>
+<title>the website</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -262,12 +262,16 @@
   .game-card:nth-child(1)::before { background: radial-gradient(ellipse at center, rgba(0,245,255,0.08), transparent 70%); }
   .game-card:nth-child(2)::before { background: radial-gradient(ellipse at center, rgba(255,0,110,0.08), transparent 70%); }
   .game-card:nth-child(3)::before { background: radial-gradient(ellipse at center, rgba(255,230,0,0.08), transparent 70%); }
+  .game-card:nth-child(4)::before { background: radial-gradient(ellipse at center, rgba(0,255,136,0.08), transparent 70%); }
+  .game-card:nth-child(5)::before { background: radial-gradient(ellipse at center, rgba(170,68,255,0.08), transparent 70%); }
 
   .game-card:hover::before { opacity: 1; }
   .game-card:hover { transform: translateY(-4px); }
   .game-card:nth-child(1):hover { border-color: var(--neon-cyan); box-shadow: 0 8px 30px rgba(0,245,255,0.15); }
   .game-card:nth-child(2):hover { border-color: var(--neon-pink); box-shadow: 0 8px 30px rgba(255,0,110,0.15); }
   .game-card:nth-child(3):hover { border-color: var(--neon-yellow); box-shadow: 0 8px 30px rgba(255,230,0,0.15); }
+  .game-card:nth-child(4):hover { border-color: var(--neon-green); box-shadow: 0 8px 30px rgba(0,255,136,0.15); }
+  .game-card:nth-child(5):hover { border-color: #aa44ff; box-shadow: 0 8px 30px rgba(170,68,255,0.15); }
 
   .game-icon {
     font-family: 'Press Start 2P', monospace;
@@ -291,6 +295,8 @@
   .game-card:nth-child(1) .game-name { color: var(--neon-cyan); }
   .game-card:nth-child(2) .game-name { color: var(--neon-pink); }
   .game-card:nth-child(3) .game-name { color: var(--neon-yellow); }
+  .game-card:nth-child(4) .game-name { color: var(--neon-green); }
+  .game-card:nth-child(5) .game-name { color: #aa44ff; }
 
   .game-desc {
     font-size: 0.65rem;
@@ -315,6 +321,8 @@
   .game-card:nth-child(1) .play-btn { background: var(--neon-cyan); color: var(--bg); }
   .game-card:nth-child(2) .play-btn { background: var(--neon-pink); color: #fff; }
   .game-card:nth-child(3) .play-btn { background: var(--neon-yellow); color: var(--bg); }
+  .game-card:nth-child(4) .play-btn { background: var(--neon-green); color: var(--bg); }
+  .game-card:nth-child(5) .play-btn { background: #aa44ff; color: #fff; }
   .play-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
 
   /* ===================== GAME SCREENS ===================== */
@@ -552,6 +560,95 @@
   /* Blink cursor on display */
   @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
   .cursor-blink { animation: blink 1s step-end infinite; }
+
+  /* ===================== SNAKE ===================== */
+  #game-snake .game-title-bar { color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green); }
+
+  #snake-canvas {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: block;
+    background: #050510;
+  }
+
+  .snake-score { font-size: 0.65rem; color: var(--dim); margin-bottom: 0.5rem; }
+  .snake-score span { color: var(--neon-green); font-size: 0.8rem; }
+
+  /* ===================== NOUGHTS & CROSSES ===================== */
+  #game-ttt .game-title-bar { color: #aa44ff; text-shadow: 0 0 8px #aa44ff; }
+
+  .ttt-status {
+    font-size: 0.6rem;
+    color: var(--text);
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-bottom: 1rem;
+    min-height: 1.2rem;
+  }
+
+  #ttt-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: #1a1a2a;
+    border: 1px solid #1a1a2a;
+    border-radius: 4px;
+    padding: 6px;
+    width: min(300px, 85vw);
+  }
+
+  .ttt-cell {
+    aspect-ratio: 1;
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(1.2rem, 6vw, 2.5rem);
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ttt-cell:hover:not(.taken) { background: #161625; border-color: #aa44ff; }
+  .ttt-cell.taken { cursor: default; }
+
+  .ttt-cell.x-cell {
+    color: var(--neon-cyan);
+    text-shadow: 0 0 10px var(--neon-cyan);
+  }
+
+  .ttt-cell.o-cell {
+    color: #aa44ff;
+    text-shadow: 0 0 10px #aa44ff;
+  }
+
+  .ttt-cell.win-cell {
+    background: #1a0a2a;
+    border-color: #aa44ff;
+    animation: tttWin 0.5s ease infinite alternate;
+  }
+
+  @keyframes tttWin {
+    from { box-shadow: none; }
+    to { box-shadow: 0 0 15px rgba(170,68,255,0.4), inset 0 0 10px rgba(170,68,255,0.1); }
+  }
+
+  .ttt-legend {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    font-size: 0.6rem;
+  }
+
+  .ttt-legend-item { display: flex; align-items: center; gap: 0.5rem; color: var(--dim); }
+  .ttt-mark { font-family: 'Press Start 2P', monospace; font-size: 0.65rem; }
+  .ttt-mark.x { color: var(--neon-cyan); }
+  .ttt-mark.o { color: #aa44ff; }
+
 </style>
 </head>
 <body>
@@ -611,6 +708,20 @@
       <div class="game-desc">Two players. Drop discs. Get four in a row to win.</div>
       <button class="play-btn">PLAY</button>
     </div>
+
+    <div class="game-card" onclick="openGame('snake')">
+      <span class="game-icon">[SNK]</span>
+      <div class="game-name">SNAKE</div>
+      <div class="game-desc">Eat pellets to grow. Avoid walls and your own tail.</div>
+      <button class="play-btn">PLAY</button>
+    </div>
+
+    <div class="game-card" onclick="openGame('ttt')">
+      <span class="game-icon">[XO]</span>
+      <div class="game-name">NOUGHTS + CROSSES</div>
+      <div class="game-desc">Two players. Get three in a row to win.</div>
+      <button class="play-btn">PLAY</button>
+    </div>
   </div>
 </div>
 
@@ -659,6 +770,35 @@
   <button class="restart-btn" onclick="initConnect4()">↺ NEW GAME</button>
 </div>
 
+
+<!-- SNAKE SCREEN -->
+<div id="game-snake" class="game-screen screen">
+  <div class="game-header" style="max-width:400px">
+    <button class="back-btn" onclick="goBack()">&#9664; BACK</button>
+    <div class="game-title-bar">SNAKE</div>
+    <div class="snake-score">SCORE<br><span id="score-snake">0</span></div>
+  </div>
+  <canvas id="snake-canvas"></canvas>
+  <div class="controls-hint">ARROW KEYS OR WASD TO MOVE</div>
+  <button class="restart-btn" onclick="initSnake()">&#8634; NEW GAME</button>
+</div>
+
+<!-- NOUGHTS & CROSSES SCREEN -->
+<div id="game-ttt" class="game-screen screen">
+  <div class="game-header" style="max-width:300px">
+    <button class="back-btn" onclick="goBack()">&#9664; BACK</button>
+    <div class="game-title-bar">N + C</div>
+    <div></div>
+  </div>
+  <div class="ttt-status" id="ttt-status">PLAYER X GOES FIRST</div>
+  <div id="ttt-board"></div>
+  <div class="ttt-legend">
+    <div class="ttt-legend-item"><span class="ttt-mark x">X</span> PLAYER 1</div>
+    <div class="ttt-legend-item"><span class="ttt-mark o">O</span> PLAYER 2</div>
+  </div>
+  <button class="restart-btn" onclick="initTTT()">&#8634; NEW GAME</button>
+</div>
+
 <script>
 // ===================== NAVIGATION =====================
 let currentGame = null;
@@ -688,6 +828,8 @@ function openGame(game) {
   if (game === '2048') { show('game-2048'); init2048(); }
   else if (game === 'suika') { show('game-suika'); initSuika(); }
   else if (game === 'connect4') { show('game-connect4'); initConnect4(); }
+  else if (game === 'snake') { show('game-snake'); initSnake(); }
+  else if (game === 'ttt') { show('game-ttt'); initTTT(); }
 }
 
 // ===================== PASSCODE =====================
@@ -1177,6 +1319,219 @@ function highlightWin(cells) {
     allCells[r * C4_COLS + c].classList.add('win-cell');
   }
 }
+
+// ===================== SNAKE =====================
+const SNAKE_GRID = 20;
+let snakeBody, snakeDir, snakeFood, snakeScore2, snakeAlive, snakeInterval;
+
+function initSnake() {
+  const canvas = document.getElementById('snake-canvas');
+  const size = Math.min(400, document.getElementById('game-snake').offsetWidth - 48);
+  const cellSize = Math.floor(size / SNAKE_GRID);
+  const boardSize = cellSize * SNAKE_GRID;
+  canvas.width = boardSize;
+  canvas.height = boardSize;
+
+  snakeBody = [{x:10, y:10}, {x:9, y:10}, {x:8, y:10}];
+  snakeDir = {x:1, y:0};
+  snakeNextDir = {x:1, y:0};
+  snakeScore2 = 0;
+  snakeAlive = true;
+  document.getElementById('score-snake').textContent = '0';
+  placeSnakeFood();
+  if (snakeInterval) clearInterval(snakeInterval);
+  snakeInterval = setInterval(snakeTick, 130);
+  drawSnake();
+}
+
+let snakeNextDir = {x:1, y:0};
+
+function placeSnakeFood() {
+  let pos;
+  do {
+    pos = {x: Math.floor(Math.random() * SNAKE_GRID), y: Math.floor(Math.random() * SNAKE_GRID)};
+  } while (snakeBody.some(s => s.x === pos.x && s.y === pos.y));
+  snakeFood = pos;
+}
+
+function snakeTick() {
+  if (!snakeAlive) return;
+  if (!document.getElementById('game-snake').classList.contains('active')) { clearInterval(snakeInterval); return; }
+  snakeDir = snakeNextDir;
+  const head = {x: snakeBody[0].x + snakeDir.x, y: snakeBody[0].y + snakeDir.y};
+
+  // Wall collision
+  if (head.x < 0 || head.x >= SNAKE_GRID || head.y < 0 || head.y >= SNAKE_GRID) { snakeGameOver(); return; }
+  // Self collision
+  if (snakeBody.some(s => s.x === head.x && s.y === head.y)) { snakeGameOver(); return; }
+
+  snakeBody.unshift(head);
+
+  if (head.x === snakeFood.x && head.y === snakeFood.y) {
+    snakeScore2 += 10;
+    document.getElementById('score-snake').textContent = snakeScore2;
+    placeSnakeFood();
+  } else {
+    snakeBody.pop();
+  }
+  drawSnake();
+}
+
+function snakeGameOver() {
+  snakeAlive = false;
+  clearInterval(snakeInterval);
+  drawSnake(true);
+}
+
+function drawSnake(gameOver) {
+  const canvas = document.getElementById('snake-canvas');
+  const ctx = canvas.getContext('2d');
+  const cell = canvas.width / SNAKE_GRID;
+
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid dots
+  ctx.fillStyle = '#0f0f1f';
+  for (let x = 0; x < SNAKE_GRID; x++)
+    for (let y = 0; y < SNAKE_GRID; y++) {
+      ctx.fillRect(x * cell + cell/2 - 1, y * cell + cell/2 - 1, 2, 2);
+    }
+
+  // Food
+  if (snakeFood) {
+    const fx = snakeFood.x * cell, fy = snakeFood.y * cell;
+    ctx.fillStyle = '#ff006e';
+    ctx.shadowColor = '#ff006e';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(fx + 3, fy + 3, cell - 6, cell - 6);
+    ctx.shadowBlur = 0;
+  }
+
+  // Snake
+  snakeBody.forEach((seg, i) => {
+    const x = seg.x * cell, y = seg.y * cell;
+    const alpha = gameOver ? 0.4 : 1;
+    const headGlow = i === 0;
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = headGlow ? 12 : 4;
+    const lightness = Math.max(30, 100 - i * 4);
+    ctx.fillStyle = `hsla(150, 100%, ${lightness}%, ${alpha})`;
+    ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+  });
+  ctx.shadowBlur = 0;
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ff006e';
+    ctx.font = `bold ${Math.floor(cell * 0.9)}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - cell);
+    ctx.fillStyle = '#e0e0f0';
+    ctx.font = `${Math.floor(cell * 0.5)}px 'Share Tech Mono', monospace`;
+    ctx.fillText('SCORE: ' + snakeScore2, canvas.width/2, canvas.height/2 + cell * 0.5);
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('game-snake').classList.contains('active')) return;
+  const dirs = {
+    ArrowUp: {x:0,y:-1}, ArrowDown: {x:0,y:1}, ArrowLeft: {x:-1,y:0}, ArrowRight: {x:1,y:0},
+    w: {x:0,y:-1}, s: {x:0,y:1}, a: {x:-1,y:0}, d: {x:1,y:0},
+    W: {x:0,y:-1}, S: {x:0,y:1}, A: {x:-1,y:0}, D: {x:1,y:0}
+  };
+  if (dirs[e.key]) {
+    e.preventDefault();
+    const nd = dirs[e.key];
+    // Prevent 180 reversal
+    if (nd.x !== -snakeDir.x || nd.y !== -snakeDir.y) snakeNextDir = nd;
+  }
+});
+
+// Snake touch controls
+let snakeTouchStart = null;
+document.addEventListener('touchstart', e => {
+  if (document.getElementById('game-snake').classList.contains('active'))
+    snakeTouchStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+}, {passive: true});
+document.addEventListener('touchend', e => {
+  if (!snakeTouchStart || !document.getElementById('game-snake').classList.contains('active')) return;
+  const dx = e.changedTouches[0].clientX - snakeTouchStart.x;
+  const dy = e.changedTouches[0].clientY - snakeTouchStart.y;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 20) {
+    const nd = dx > 0 ? {x:1,y:0} : {x:-1,y:0};
+    if (nd.x !== -snakeDir.x) snakeNextDir = nd;
+  } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20) {
+    const nd = dy > 0 ? {x:0,y:1} : {x:0,y:-1};
+    if (nd.y !== -snakeDir.y) snakeNextDir = nd;
+  }
+  snakeTouchStart = null;
+});
+
+// ===================== NOUGHTS & CROSSES =====================
+let tttBoard, tttTurn, tttOver;
+
+function initTTT() {
+  tttBoard = Array(9).fill('');
+  tttTurn = 'X';
+  tttOver = false;
+  document.getElementById('ttt-status').textContent = 'PLAYER X GOES FIRST';
+  renderTTT();
+}
+
+function renderTTT() {
+  const board = document.getElementById('ttt-board');
+  board.innerHTML = '';
+  tttBoard.forEach((val, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'ttt-cell' + (val ? ' taken' : '') + (val === 'X' ? ' x-cell' : '') + (val === 'O' ? ' o-cell' : '');
+    cell.textContent = val;
+    if (!val && !tttOver) cell.addEventListener('click', () => tttClick(i));
+    board.appendChild(cell);
+  });
+}
+
+function tttClick(i) {
+  if (tttBoard[i] || tttOver) return;
+  tttBoard[i] = tttTurn;
+  const winner = checkTTTWin();
+  if (winner) {
+    tttOver = true;
+    renderTTT();
+    highlightTTT(winner.line);
+    document.getElementById('ttt-status').textContent = `PLAYER ${tttTurn} WINS!`;
+  } else if (tttBoard.every(v => v)) {
+    tttOver = true;
+    renderTTT();
+    document.getElementById('ttt-status').textContent = "IT'S A DRAW!";
+  } else {
+    tttTurn = tttTurn === 'X' ? 'O' : 'X';
+    document.getElementById('ttt-status').textContent = `PLAYER ${tttTurn}'S TURN`;
+    renderTTT();
+  }
+}
+
+function checkTTTWin() {
+  const lines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  for (const line of lines) {
+    const [a,b,c] = line;
+    if (tttBoard[a] && tttBoard[a] === tttBoard[b] && tttBoard[a] === tttBoard[c])
+      return { player: tttBoard[a], line };
+  }
+  return null;
+}
+
+function highlightTTT(line) {
+  const cells = document.getElementById('ttt-board').querySelectorAll('.ttt-cell');
+  line.forEach(i => cells[i].classList.add('win-cell'));
+}
+
 </script>
 </body>
 </html>
