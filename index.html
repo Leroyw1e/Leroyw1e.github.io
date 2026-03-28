@@ -316,8 +316,13 @@ let seenKeys  = new Set();
 let codeEntry = '';
 const SECRET  = '2012';
 
-// Only use the most reliable public Gun peers
-const GUN_PEERS = ['https://peer.wallie.io/gun'];
+// Multiple reliable public Gun peers for better cross-device sync
+const GUN_PEERS = [
+  'https://gun-manhattan.herokuapp.com/gun',
+  'https://peer.wallie.io/gun',
+  'https://gunjs.herokuapp.com/gun',
+  'https://e2eec.herokuapp.com/gun'
+];
 
 // ── BOOT ───────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -377,7 +382,12 @@ function joinRoom() {
 
   // ── Init Gun after screen switch ──
   try {
-    gun     = Gun({ peers: GUN_PEERS, localStorage: false, radisk: false });
+    gun     = Gun({
+      peers: GUN_PEERS,
+      localStorage: false,
+      radisk: false,
+      axe: false
+    });
     roomRef = gun.get('mesh-v2').get(myRoom);
     listenMessages();
 
