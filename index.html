@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>mesh. chat</title>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
       --bg:       #0b0c0f;
       --surface:  #13151a;
@@ -19,6 +20,9 @@
       --text:     #d4d8e2;
       --dim:      #6b7385;
       --danger:   #ff4d6d;
+      --warn:     #ffb347;
+      --dm:       #7c6aff;
+      --dm2:      #2a2060;
       --mono:     'JetBrains Mono', monospace;
       --sans:     'Syne', sans-serif;
     }
@@ -36,16 +40,25 @@
     .join-card { width:100%; max-width:400px; padding:0 24px; animation:fadeUp .45s ease both; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 
-    .logo-btn {
-      font-family:var(--sans); font-size:2.4rem; font-weight:800; letter-spacing:-1px;
-      color:var(--accent); margin-bottom:4px; display:block;
-    }
+    .logo { font-family:var(--sans); font-size:2.4rem; font-weight:800; letter-spacing:-1px; color:var(--accent); margin-bottom:4px; display:block; }
     .tagline-btn {
       background:none; border:none; cursor:pointer; text-align:left; padding:0; display:block;
       font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.14em;
-      text-transform:uppercase; margin-bottom:34px; transition:color .15s;
+      text-transform:uppercase; margin-bottom:28px; transition:color .15s;
     }
     .tagline-btn:hover { color:var(--accent); }
+
+    /* tabs */
+    .tabs { display:flex; gap:0; margin-bottom:24px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .tab {
+      flex:1; padding:9px 0; text-align:center; font-size:11px; letter-spacing:.1em;
+      text-transform:uppercase; cursor:pointer; color:var(--muted); background:var(--surface);
+      border:none; font-family:var(--mono); transition:all .15s;
+    }
+    .tab.active { background:var(--surface2); color:var(--text); }
+    .tab:first-child { border-right:1px solid var(--border); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
 
     .field { margin-bottom:16px; }
     .field-label { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; display:flex; align-items:center; gap:8px; }
@@ -67,7 +80,11 @@
       border:none; border-radius:6px; cursor:pointer; transition:opacity .15s, transform .12s;
     }
     .join-btn:hover { opacity:.85; transform:translateY(-1px); }
-    .join-btn:active { transform:translateY(0); opacity:.7; }
+    .join-btn:active { transform:translateY(0); }
+    .join-btn.dm-btn { background:var(--dm); }
+
+    .dm-hint { font-size:11px; color:var(--dim); line-height:1.7; margin-top:14px; border-left:2px solid var(--border); padding-left:12px; }
+    .dm-hint strong { color:var(--dm); font-weight:600; }
 
     /* Recent */
     .recent-section { margin-top:28px; }
@@ -79,9 +96,11 @@
       padding:10px 14px; cursor:pointer; transition:border-color .15s, background .15s;
     }
     .recent-item:hover { border-color:var(--accent); background:var(--surface2); }
+    .recent-item.dm-item:hover { border-color:var(--dm); }
     .recent-room { font-size:13px; color:var(--text); }
     .recent-room span { color:var(--accent); }
-    .recent-preview { font-size:11px; color:var(--dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+    .recent-room span.dm-tag { color:var(--dm); }
+    .recent-preview { font-size:11px; color:var(--dim); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
     .recent-time { font-size:10px; color:var(--muted); flex-shrink:0; margin-left:10px; }
     .recent-left { min-width:0; }
     .no-recent { font-size:11px; color:var(--muted); font-style:italic; }
@@ -96,6 +115,7 @@
     .room-info { display:flex; flex-direction:column; gap:2px; }
     .room-name { font-family:var(--sans); font-weight:700; font-size:15px; }
     .room-name span { color:var(--accent); }
+    .room-name span.is-dm { color:var(--dm); }
     .room-meta { font-size:10px; color:var(--dim); letter-spacing:.08em; }
     .header-actions { display:flex; gap:8px; align-items:center; }
     .pill-btn {
@@ -104,7 +124,8 @@
       cursor:pointer; transition:all .15s; letter-spacing:.05em;
     }
     .pill-btn:hover { border-color:var(--accent); color:var(--accent); }
-    .dot { width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 6px var(--accent); animation:blink 2s infinite; }
+    .conn-dot { width:7px; height:7px; border-radius:50%; background:var(--muted); transition:background .4s, box-shadow .4s; flex-shrink:0; }
+    .conn-dot.online { background:var(--accent); box-shadow:0 0 6px var(--accent); animation:blink 2s infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
 
     #messages {
@@ -114,15 +135,26 @@
     #messages::-webkit-scrollbar { width:4px; }
     #messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
 
-    .msg { display:flex; flex-direction:column; max-width:75%; animation:msgIn .2s ease both; }
+    .msg { display:flex; flex-direction:column; max-width:75%; animation:msgIn .18s ease both; }
     @keyframes msgIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-    .msg.mine { align-self:flex-end; align-items:flex-end; }
+    .msg.mine   { align-self:flex-end;   align-items:flex-end; }
     .msg.theirs { align-self:flex-start; align-items:flex-start; }
     .msg-meta { font-size:10px; color:var(--dim); margin-bottom:3px; letter-spacing:.04em; }
     .msg.mine .msg-meta { color:rgba(0,229,160,.5); }
+    .msg.mine.dm .msg-meta { color:rgba(124,106,255,.6); }
     .msg-bubble { padding:9px 13px; border-radius:12px; line-height:1.55; font-size:13.5px; word-break:break-word; }
-    .msg.mine .msg-bubble { background:var(--accent2); border:1px solid rgba(0,229,160,.2); color:#c8ffe8; border-bottom-right-radius:3px; }
-    .msg.theirs .msg-bubble { background:var(--surface); border:1px solid var(--border); color:var(--text); border-bottom-left-radius:3px; }
+    .msg.mine   .msg-bubble { background:var(--accent2); border:1px solid rgba(0,229,160,.2); color:#c8ffe8; border-bottom-right-radius:3px; }
+    .msg.theirs .msg-bubble { background:var(--surface);  border:1px solid var(--border); color:var(--text); border-bottom-left-radius:3px; }
+    /* DM colours */
+    .msg.mine.dm   .msg-bubble { background:var(--dm2); border-color:rgba(124,106,255,.25); color:#d8d0ff; }
+    .msg.theirs.dm .msg-bubble { background:#1a1730; border-color:rgba(124,106,255,.15); color:var(--text); }
+
+    .day-divider {
+      display:flex; align-items:center; gap:12px;
+      font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase;
+      margin:10px 0;
+    }
+    .day-divider::before, .day-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 
     .chat-footer { padding:12px 20px; border-top:1px solid var(--border); background:var(--surface); flex-shrink:0; }
     .input-row { display:flex; gap:10px; align-items:center; }
@@ -132,24 +164,24 @@
       outline:none; transition:border-color .2s;
     }
     #msg-input:focus { border-color:var(--accent); }
+    #msg-input.dm-input:focus { border-color:var(--dm); }
     #msg-input::placeholder { color:var(--muted); }
     .send-btn {
       width:42px; height:42px; border-radius:8px; background:var(--accent); border:none;
       cursor:pointer; display:flex; align-items:center; justify-content:center;
       flex-shrink:0; transition:opacity .15s, transform .12s;
     }
+    .send-btn.dm-send { background:var(--dm); }
     .send-btn:hover { opacity:.85; transform:scale(1.05); }
     .send-btn:active { transform:scale(.97); }
     .send-btn svg { width:17px; height:17px; }
     .char-info { font-size:10px; color:var(--dim); margin-top:6px; }
-
-    /* status bar */
-    .status-bar {
-      font-size:10px; padding:5px 20px; background:rgba(0,229,160,.06);
-      color:var(--accent); border-bottom:1px solid rgba(0,229,160,.1);
-      letter-spacing:.06em; flex-shrink:0; display:none;
+    .error-bar {
+      display:none; padding:10px 20px; background:rgba(255,77,109,.1);
+      border-top:1px solid rgba(255,77,109,.3); font-size:11px;
+      color:var(--danger); line-height:1.6; flex-shrink:0;
     }
-    .status-bar.show { display:block; }
+    .error-bar.show { display:block; }
 
     /* ── MODALS ── */
     .modal-bg {
@@ -179,15 +211,15 @@
     .key:active { transform:scale(.93); }
     .key.zero { grid-column:2; }
     .key.del { font-size:14px; color:var(--muted); }
-    .key.del:hover { color:var(--danger); border-color:rgba(255,77,109,.3); }
-    .modal-cancel { font-size:11px; color:var(--muted); cursor:pointer; letter-spacing:.06em; text-transform:uppercase; transition:color .15s; }
+    .key.del:hover { color:var(--danger); }
+    .modal-cancel { font-size:11px; color:var(--muted); cursor:pointer; letter-spacing:.06em; text-transform:uppercase; }
     .modal-cancel:hover { color:var(--danger); }
     .new-name-row { display:flex; gap:10px; width:100%; }
     .new-name-row input { flex:1; }
     .confirm-btn {
       padding:11px 16px; background:var(--accent); color:#000;
       font-family:var(--mono); font-size:12px; font-weight:700;
-      border:none; border-radius:6px; cursor:pointer; white-space:nowrap; transition:opacity .15s;
+      border:none; border-radius:6px; cursor:pointer; white-space:nowrap;
     }
     .confirm-btn:hover { opacity:.85; }
 
@@ -196,7 +228,7 @@
       transform:translateX(-50%) translateY(10px);
       background:var(--surface); border:1px solid var(--border);
       color:var(--accent); font-size:12px; padding:8px 16px; border-radius:20px;
-      opacity:0; transition:all .25s; pointer-events:none; white-space:nowrap; z-index:600;
+      opacity:0; transition:all .25s; pointer-events:none; white-space:nowrap; z-index:700;
     }
     .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -209,12 +241,25 @@
 </head>
 <body>
 
-<!-- JOIN -->
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDYQ-oykVUxA0pSpa7g5jKj8yz5calsrHs",
+    authDomain:        "fire-base-first-f23d2.firebaseapp.com",
+    databaseURL:       "https://fire-base-first-f23d2-default-rtdb.firebaseio.com",
+    projectId:         "fire-base-first-f23d2",
+    storageBucket:     "fire-base-first-f23d2.firebasestorage.app",
+    messagingSenderId: "642985156508",
+    appId:             "1:642985156508:web:b59b4c31d78213fd6bb259"
+  };
+</script>
+
+<!-- ── JOIN ── -->
 <div id="join-screen" class="screen active">
   <div class="join-card">
-    <div class="logo-btn">mesh.</div>
-    <button class="tagline-btn" onclick="openKeypad()">P2P · No servers · GitHub Pages ready</button>
+    <div class="logo">mesh.</div>
+    <button class="tagline-btn" onclick="openKeypad()">P2P · Firebase · GitHub Pages ready</button>
 
+    <!-- Username field (shared across tabs) -->
     <div class="field">
       <div class="field-label">
         Your name
@@ -223,13 +268,35 @@
       <input type="text" id="username-input" placeholder="e.g. alex" maxlength="24" autocomplete="off" spellcheck="false"/>
     </div>
 
-    <div class="field">
-      <div class="field-label">Room name</div>
-      <input type="text" id="room-input" placeholder="e.g. general" maxlength="32" autocomplete="off" spellcheck="false"/>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" id="tab-room" onclick="switchTab('room')">room chat</button>
+      <button class="tab"        id="tab-dm"   onclick="switchTab('dm')">direct message</button>
     </div>
 
-    <button class="join-btn" id="join-btn" onclick="joinRoom()">join room →</button>
+    <!-- Room panel -->
+    <div class="tab-panel active" id="panel-room">
+      <div class="field">
+        <div class="field-label">Room name</div>
+        <input type="text" id="room-input" placeholder="e.g. general" maxlength="32" autocomplete="off" spellcheck="false"/>
+      </div>
+      <button class="join-btn" onclick="joinRoom()">join room →</button>
+    </div>
 
+    <!-- DM panel -->
+    <div class="tab-panel" id="panel-dm">
+      <div class="field">
+        <div class="field-label">Message to</div>
+        <input type="text" id="dm-input" placeholder="their username" maxlength="24" autocomplete="off" spellcheck="false"/>
+      </div>
+      <button class="join-btn dm-btn" onclick="joinDM()">open conversation →</button>
+      <div class="dm-hint">
+        Both people need to use the <strong>same username</strong> they registered with.<br/>
+        Conversations are private between the two of you.
+      </div>
+    </div>
+
+    <!-- Recent -->
     <div class="recent-section">
       <div class="recent-title">recent chats</div>
       <div class="recent-list" id="recent-list"><div class="no-recent">no recent chats yet</div></div>
@@ -237,7 +304,7 @@
   </div>
 </div>
 
-<!-- CHAT -->
+<!-- ── CHAT ── -->
 <div id="chat-screen" class="screen">
   <div class="chat-header">
     <div class="room-info">
@@ -245,17 +312,17 @@
       <div class="room-meta" id="header-meta">connecting…</div>
     </div>
     <div class="header-actions">
-      <div class="dot"></div>
+      <div class="conn-dot" id="conn-dot"></div>
       <button class="pill-btn" onclick="copyRoomLink()">share</button>
       <button class="pill-btn" onclick="leaveRoom()">leave</button>
     </div>
   </div>
-  <div class="status-bar" id="status-bar">⟳ syncing with peers…</div>
   <div id="messages"></div>
+  <div class="error-bar" id="error-bar"></div>
   <div class="chat-footer">
     <div class="input-row">
       <input type="text" id="msg-input" placeholder="type a message…" maxlength="500" autocomplete="off" spellcheck="false"/>
-      <button class="send-btn" onclick="sendMessage()">
+      <button class="send-btn" id="send-btn" onclick="sendMessage()">
         <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/>
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -266,7 +333,7 @@
   </div>
 </div>
 
-<!-- KEYPAD MODAL -->
+<!-- ── KEYPAD ── -->
 <div class="modal-bg" id="keypad-modal">
   <div class="modal">
     <div class="modal-title">mesh. settings</div>
@@ -288,13 +355,13 @@
       <div class="key" onclick="keyPress('8')">8</div>
       <div class="key" onclick="keyPress('9')">9</div>
       <div class="key zero" onclick="keyPress('0')">0</div>
-      <div class="key del"  onclick="keyDel()">⌫</div>
+      <div class="key del"  onclick="keyDel()">&#x232B;</div>
     </div>
     <div class="modal-cancel" onclick="closeKeypad()">cancel</div>
   </div>
 </div>
 
-<!-- NAME MODAL -->
+<!-- ── NAME MODAL ── -->
 <div class="modal-bg" id="name-modal">
   <div class="modal">
     <div class="modal-title">change username</div>
@@ -310,167 +377,237 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── STATE ──────────────────────────────────────────────────────────
-let gun, roomRef, myName, myRoom;
-let seenKeys  = new Set();
+// ── STATE ─────────────────────────────────────────────────────────
+let db, msgsRef, listener;
+let myName, myRoom, isDM;
 let codeEntry = '';
-const SECRET  = '2012';
+const SECRET = '2012';
 
-// Only use the most reliable public Gun peers
-const GUN_PEERS = ['https://peer.wallie.io/gun'];
-
-// ── BOOT ───────────────────────────────────────────────────────────
+// ── BOOT ──────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  try { loadUsername(); } catch(e) { console.warn('localStorage unavailable', e); }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    db.ref('.info/connected').on('value', s => {
+      document.getElementById('conn-dot').classList.toggle('online', !!s.val());
+    });
+  } catch(e) { console.error('Firebase init:', e); }
+
+  try { loadUsername(); } catch(e) {}
   try { renderRecentChats(); } catch(e) {}
 
-  const r = new URLSearchParams(window.location.search).get('room');
-  if (r) {
-    document.getElementById('room-input').value = r;
-    const u = document.getElementById('username-input');
-    setTimeout(() => (u.disabled || u.value ? joinRoom() : u.focus()), 200);
-  }
+  const p = new URLSearchParams(window.location.search);
+  const r = p.get('room'), d = p.get('dm');
+  if (r) { document.getElementById('room-input').value = r; tryAutoJoin(); }
+  if (d) { switchTab('dm'); document.getElementById('dm-input').value = d; tryAutoJoin(); }
 });
 
-// ── USERNAME LOCK ──────────────────────────────────────────────────
+function tryAutoJoin() {
+  setTimeout(() => {
+    const u = document.getElementById('username-input');
+    if (u.disabled || u.value.trim()) {
+      if (document.getElementById('panel-dm').classList.contains('active')) joinDM();
+      else joinRoom();
+    } else { u.focus(); }
+  }, 200);
+}
+
+// ── TABS ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('tab-room').classList.toggle('active', tab === 'room');
+  document.getElementById('tab-dm').classList.toggle('active',   tab === 'dm');
+  document.getElementById('panel-room').classList.toggle('active', tab === 'room');
+  document.getElementById('panel-dm').classList.toggle('active',   tab === 'dm');
+}
+
+// ── USERNAME ──────────────────────────────────────────────────────
 function loadUsername() {
   const saved = localStorage.getItem('mesh_username');
   if (!saved) return;
   const u = document.getElementById('username-input');
-  u.value    = saved;
-  u.disabled = true;
+  u.value = saved; u.disabled = true;
   document.getElementById('lock-badge').style.display = '';
 }
 
-// ── JOIN ROOM ──────────────────────────────────────────────────────
+// ── JOIN ROOM ────────────────────────────────────────────────────
 function joinRoom() {
   const uEl  = document.getElementById('username-input');
   const rEl  = document.getElementById('room-input');
   const name = uEl.value.trim();
   const room = rEl.value.trim().toLowerCase().replace(/\s+/g, '-');
+  if (!name) { shake('username-input'); showToast('enter your name first'); return; }
+  if (!room) { shake('room-input');     showToast('enter a room name'); return; }
+  lockUsername(name);
+  enterChat(name, room, false);
+}
 
-  if (!name) { shake('username-input'); showToast('enter a username first'); return; }
-  if (!room) { shake('room-input');     showToast('enter a room name first'); return; }
+// ── JOIN DM ───────────────────────────────────────────────────────
+function joinDM() {
+  const uEl  = document.getElementById('username-input');
+  const dEl  = document.getElementById('dm-input');
+  const name = uEl.value.trim();
+  const them = dEl.value.trim().toLowerCase();
+  if (!name)  { shake('username-input'); showToast('enter your name first'); return; }
+  if (!them)  { shake('dm-input');       showToast('enter their username'); return; }
+  if (them === name.toLowerCase()) { shake('dm-input'); showToast('you can\'t DM yourself'); return; }
+  lockUsername(name);
+  // DM channel key = sorted pair so both users get the same channel
+  const channelKey = [name.toLowerCase(), them].sort().join('__');
+  enterChat(name, channelKey, true, them);
+}
 
-  // Lock name on first use
+function lockUsername(name) {
+  const uEl = document.getElementById('username-input');
   if (!uEl.disabled) {
     uEl.disabled = true;
     document.getElementById('lock-badge').style.display = '';
     try { localStorage.setItem('mesh_username', name); } catch(e) {}
   }
-
   myName = name;
-  myRoom = room;
-  seenKeys.clear();
+}
 
-  // ── Switch screen FIRST so user sees something immediately ──
-  document.getElementById('header-room').textContent = '#' + myRoom;
-  document.getElementById('header-meta').textContent = 'you — ' + myName;
+// ── ENTER CHAT ────────────────────────────────────────────────────
+function enterChat(name, roomKey, dm, dmPartner) {
+  myRoom = roomKey;
+  isDM   = dm;
+
+  // Detach old listener
+  if (msgsRef && listener) { try { msgsRef.off('child_added', listener); } catch(e) {} }
   document.getElementById('messages').innerHTML = '';
-  showScreen('chat-screen');
 
+  // Header
+  const label = dm ? dmPartner : roomKey;
+  const headerSpan = document.getElementById('header-room');
+  headerSpan.textContent = (dm ? '@' : '#') + label;
+  headerSpan.className   = dm ? 'is-dm' : '';
+  document.getElementById('header-meta').textContent = 'you — ' + name;
+
+  // Input / send btn colour for DMs
+  const msgInput = document.getElementById('msg-input');
+  const sendBtn  = document.getElementById('send-btn');
+  msgInput.classList.toggle('dm-input', dm);
+  sendBtn.classList.toggle('dm-send',   dm);
+
+  // URL
   try {
     const url = new URL(window.location.href);
-    url.searchParams.set('room', myRoom);
+    url.searchParams.delete('room'); url.searchParams.delete('dm');
+    if (dm) url.searchParams.set('dm', dmPartner);
+    else    url.searchParams.set('room', roomKey);
     window.history.replaceState({}, '', url);
   } catch(e) {}
 
-  // ── Init Gun after screen switch ──
-  try {
-    gun     = Gun({ peers: GUN_PEERS, localStorage: false, radisk: false });
-    roomRef = gun.get('mesh-v2').get(myRoom);
-    listenMessages();
+  showScreen('chat-screen');
+  hideError();
 
-    const sb = document.getElementById('status-bar');
-    sb.classList.add('show');
-    setTimeout(() => sb.classList.remove('show'), 3000);
-  } catch(e) {
-    console.error('Gun init failed:', e);
-    showToast('peer connection failed — messages may be local only');
-  }
+  // Firebase path
+  const path = dm ? 'dms/' + roomKey : 'rooms/' + roomKey;
+  msgsRef = db.ref(path + '/messages');
 
-  setTimeout(() => document.getElementById('msg-input').focus(), 100);
-  try { saveRecent(myRoom, ''); } catch(e) {}
-}
+  // Load last 100 messages then listen for new ones
+  msgsRef.orderByChild('time').limitToLast(100).once('value', snap => {
+    const msgs = [];
+    snap.forEach(c => msgs.push({ key: c.key, ...c.val() }));
+    msgs.forEach(m => renderMsg(m, dm));
 
-// ── GUN LISTENER ──────────────────────────────────────────────────
-function listenMessages() {
-  if (!roomRef) return;
-  roomRef.map().on((data, key) => {
-    try {
-      if (!data || !data.text || !data.user) return;
-      if (seenKeys.has(key)) return;
-      seenKeys.add(key);
-      appendMessage(data);
-      try { saveRecent(myRoom, String(data.text).slice(0, 60)); } catch(e) {}
-    } catch(e) { console.warn('message render error', e); }
+    // Listen for messages newer than our last loaded one
+    const after = msgs.length ? msgs[msgs.length - 1].time : Date.now();
+    listener = msgsRef.orderByChild('time').startAfter(after).on('child_added', snap => {
+      renderMsg({ key: snap.key, ...snap.val() }, dm);
+      try { saveRecent(roomKey, snap.val().text, dm, dmPartner || roomKey); } catch(e) {}
+    });
   });
+
+  setTimeout(() => msgInput.focus(), 100);
+  try { saveRecent(roomKey, '', dm, dmPartner || roomKey); } catch(e) {}
 }
 
-// ── SEND ──────────────────────────────────────────────────────────
+// ── SEND ─────────────────────────────────────────────────────────
 function sendMessage() {
   const input = document.getElementById('msg-input');
   const text  = input.value.trim();
   if (!text) return;
+  if (!msgsRef) { showError('not connected to Firebase — check your databaseURL'); return; }
 
-  const key = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  const msg  = { user: myName, text: text, time: Date.now() };
-
-  // Render own message immediately — don't wait for Gun
-  seenKeys.add(key);
-  appendMessage(msg);
-  try { saveRecent(myRoom, text.slice(0, 60)); } catch(e) {}
-
-  // Push to peers
-  try {
-    if (roomRef) roomRef.get(key).put(msg);
-  } catch(e) { console.warn('Gun put failed', e); }
-
+  const saved = input.value;
   input.value = '';
   input.focus();
   updateCharInfo('');
+
+  msgsRef.push({
+    user: myName,
+    text: text,
+    time: firebase.database.ServerValue.TIMESTAMP
+  }).then(() => {
+    hideError();
+  }).catch(e => {
+    console.error('send error:', e);
+    input.value = saved;
+    if (e.code === 'PERMISSION_DENIED') {
+      showError('permission denied — go to Firebase console > Realtime Database > Rules and set .read and .write to true');
+    } else {
+      showError('send failed: ' + e.message);
+    }
+  });
 }
 
-// ── RENDER MESSAGE ────────────────────────────────────────────────
-function appendMessage(data) {
-  const isMine = data.user === myName;
-  const time   = data.time
-    ? new Date(data.time).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
-    : '';
-  const wrap   = document.createElement('div');
-  wrap.className = 'msg ' + (isMine ? 'mine' : 'theirs');
+// ── RENDER ───────────────────────────────────────────────────────
+const renderedKeys = new Set();
+let lastDay = null;
+
+function renderMsg(data, dm) {
+  if (!data || !data.text || !data.user) return;
+  if (renderedKeys.has(data.key)) return;
+  renderedKeys.add(data.key);
+
+  const c      = document.getElementById('messages');
+  const isMine = data.user.toLowerCase() === myName.toLowerCase();
+  const d      = data.time ? new Date(data.time) : new Date();
+  const day    = d.toDateString();
+  const time   = d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+
+  // Day divider
+  if (day !== lastDay) {
+    lastDay = day;
+    const div = document.createElement('div');
+    div.className   = 'day-divider';
+    div.textContent = day === new Date().toDateString() ? 'today' : day;
+    c.appendChild(div);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (isMine ? 'mine' : 'theirs') + (dm ? ' dm' : '');
   wrap.innerHTML =
-    '<div class="msg-meta">' + (isMine ? 'you' : escHtml(data.user)) + ' · ' + time + '</div>' +
+    '<div class="msg-meta">' + (isMine ? 'you' : escHtml(data.user)) + ' &middot; ' + time + '</div>' +
     '<div class="msg-bubble">' + escHtml(data.text) + '</div>';
-  const c = document.getElementById('messages');
   c.appendChild(wrap);
   c.scrollTop = c.scrollHeight;
 }
 
-// ── LEAVE ─────────────────────────────────────────────────────────
+// ── LEAVE ────────────────────────────────────────────────────────
 function leaveRoom() {
-  try { if (gun) gun.off(); } catch(e) {}
-  gun = null; roomRef = null; seenKeys.clear();
+  if (msgsRef && listener) { try { msgsRef.off('child_added', listener); } catch(e) {} }
+  msgsRef = null; listener = null; renderedKeys.clear(); lastDay = null;
   document.getElementById('messages').innerHTML = '';
+  document.getElementById('conn-dot').classList.remove('online');
   try {
     const url = new URL(window.location.href);
-    url.searchParams.delete('room');
+    url.searchParams.delete('room'); url.searchParams.delete('dm');
     window.history.replaceState({}, '', url);
   } catch(e) {}
   try { renderRecentChats(); } catch(e) {}
   showScreen('join-screen');
 }
 
-// ── COPY LINK ─────────────────────────────────────────────────────
+// ── COPY LINK ────────────────────────────────────────────────────
 function copyRoomLink() {
   try {
     const url = new URL(window.location.href);
-    url.searchParams.set('room', myRoom);
-    navigator.clipboard.writeText(url.toString()).then(() => showToast('room link copied ✓'));
-  } catch(e) { showToast('could not copy link'); }
+    navigator.clipboard.writeText(url.toString()).then(() => showToast('link copied'));
+  } catch(e) {}
 }
 
-// ── KEYPAD ────────────────────────────────────────────────────────
+// ── KEYPAD ───────────────────────────────────────────────────────
 function openKeypad() { codeEntry = ''; updateDots(); document.getElementById('keypad-modal').classList.add('open'); }
 function closeKeypad() { codeEntry = ''; updateDots(); document.getElementById('keypad-modal').classList.remove('open'); }
 function keyPress(d) {
@@ -478,19 +615,19 @@ function keyPress(d) {
   codeEntry += d; updateDots();
   if (codeEntry.length === 4) setTimeout(checkCode, 150);
 }
-function keyDel() { codeEntry = codeEntry.slice(0, -1); updateDots(); }
+function keyDel() { codeEntry = codeEntry.slice(0,-1); updateDots(); }
 function updateDots(err) {
   for (let i = 0; i < 4; i++) {
-    const dot = document.getElementById('d' + i);
-    dot.className = 'code-dot' + (err ? ' error' : i < codeEntry.length ? ' filled' : '');
+    document.getElementById('d'+i).className =
+      'code-dot' + (err ? ' error' : i < codeEntry.length ? ' filled' : '');
   }
 }
 function checkCode() {
   if (codeEntry === SECRET) { closeKeypad(); openNameModal(); }
-  else { updateDots(true); setTimeout(() => { codeEntry = ''; updateDots(); }, 750); }
+  else { updateDots(true); setTimeout(() => { codeEntry=''; updateDots(); }, 750); }
 }
 
-// ── NAME MODAL ────────────────────────────────────────────────────
+// ── NAME MODAL ───────────────────────────────────────────────────
 function openNameModal() {
   try { document.getElementById('new-name-input').value = localStorage.getItem('mesh_username') || ''; } catch(e) {}
   document.getElementById('name-modal').classList.add('open');
@@ -506,55 +643,66 @@ function confirmNewName() {
   u.value = val; u.disabled = true;
   document.getElementById('lock-badge').style.display = '';
   closeNameModal();
-  showToast('username saved: ' + val + ' ✓');
+  showToast('username saved: ' + val);
 }
 
-// ── RECENT CHATS ──────────────────────────────────────────────────
+// ── RECENT ───────────────────────────────────────────────────────
 function getRecent() {
   try { return JSON.parse(localStorage.getItem('mesh_recent') || '[]'); } catch { return []; }
 }
-function saveRecent(room, lastMsg) {
-  let list = getRecent().filter(r => r.room !== room);
-  list.unshift({ room, lastMsg: lastMsg || '', time: Date.now() });
-  try { localStorage.setItem('mesh_recent', JSON.stringify(list.slice(0, 6))); } catch(e) {}
+function saveRecent(key, lastMsg, dm, displayName) {
+  let list = getRecent().filter(r => r.key !== key);
+  list.unshift({ key, displayName: displayName || key, lastMsg: lastMsg || '', time: Date.now(), dm: !!dm });
+  try { localStorage.setItem('mesh_recent', JSON.stringify(list.slice(0, 8))); } catch(e) {}
 }
 function renderRecentChats() {
   const list = getRecent();
   const el   = document.getElementById('recent-list');
   if (!list.length) { el.innerHTML = '<div class="no-recent">no recent chats yet</div>'; return; }
   el.innerHTML = list.map(r => {
-    const safeRoom = r.room.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<div class="recent-item" onclick="quickJoin(\'' + safeRoom + '\')">' +
+    const safe = (r.displayName || r.key).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const isDmItem = r.dm;
+    return '<div class="recent-item' + (isDmItem ? ' dm-item' : '') + '" onclick="quickJoin(\'' + safe + '\',' + isDmItem + ')">' +
       '<div class="recent-left">' +
-        '<div class="recent-room"><span>#</span>' + escHtml(r.room) + '</div>' +
+        '<div class="recent-room"><span class="' + (isDmItem ? 'dm-tag' : '') + '">' + (isDmItem ? '@' : '#') + '</span>' + escHtml(r.displayName || r.key) + '</div>' +
         (r.lastMsg ? '<div class="recent-preview">' + escHtml(r.lastMsg) + '</div>' : '') +
       '</div>' +
       '<div class="recent-time">' + timeAgo(r.time) + '</div>' +
     '</div>';
   }).join('');
 }
-function quickJoin(room) {
-  document.getElementById('room-input').value = room;
+function quickJoin(name, dm) {
   const u = document.getElementById('username-input');
-  if (!u.disabled && !u.value) u.focus(); else joinRoom();
+  if (!u.disabled && !u.value.trim()) { u.focus(); showToast('enter your name first'); return; }
+  if (dm) {
+    switchTab('dm');
+    document.getElementById('dm-input').value = name;
+    joinDM();
+  } else {
+    switchTab('room');
+    document.getElementById('room-input').value = name;
+    joinRoom();
+  }
 }
 function timeAgo(ts) {
-  const s = Math.floor((Date.now() - ts) / 1000);
+  const s = Math.floor((Date.now()-ts)/1000);
   if (s < 60)    return 'just now';
   if (s < 3600)  return Math.floor(s/60)  + 'm ago';
   if (s < 86400) return Math.floor(s/3600) + 'h ago';
   return Math.floor(s/86400) + 'd ago';
 }
 
-// ── KEYBOARD ──────────────────────────────────────────────────────
+// ── KEYBOARD ─────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeKeypad(); closeNameModal(); return; }
   if (e.key !== 'Enter') return;
   if (document.getElementById('name-modal').classList.contains('open'))    { confirmNewName(); return; }
   if (document.getElementById('chat-screen').classList.contains('active')) { sendMessage();    return; }
-  if (document.getElementById('join-screen').classList.contains('active')) { joinRoom(); }
+  if (document.getElementById('join-screen').classList.contains('active')) {
+    if (document.getElementById('panel-dm').classList.contains('active')) joinDM();
+    else joinRoom();
+  }
 });
-
 document.addEventListener('input', e => {
   if (e.target.id === 'msg-input') updateCharInfo(e.target.value);
 });
@@ -563,13 +711,18 @@ function updateCharInfo(val) {
   if (val.length > 400) {
     el.textContent = (500 - val.length) + ' chars left';
     el.style.color = val.length > 480 ? 'var(--danger)' : '';
-  } else {
-    el.textContent = 'enter to send';
-    el.style.color = '';
-  }
+  } else { el.textContent = 'enter to send'; el.style.color = ''; }
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────
+// ── HELPERS ──────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('error-bar');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function hideError() {
+  document.getElementById('error-bar').classList.remove('show');
+}
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -577,7 +730,7 @@ function showScreen(id) {
 function shake(id) {
   const el = document.getElementById(id);
   el.style.borderColor = 'var(--danger)';
-  el.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}], {duration:280});
+  el.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}],{duration:280});
   setTimeout(() => el.style.borderColor = '', 900);
 }
 function showToast(msg) {
@@ -587,7 +740,7 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 </body>
