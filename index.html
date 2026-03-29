@@ -41,12 +41,16 @@
     @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
 
     .logo { font-family:var(--sans); font-size:2.4rem; font-weight:800; letter-spacing:-1px; color:var(--accent); margin-bottom:4px; display:block; }
-    .tagline-btn {
-      background:none; border:none; cursor:pointer; text-align:left; padding:0; display:block;
+    .tagline-wrap {
       font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.14em;
-      text-transform:uppercase; margin-bottom:28px; transition:color .15s;
+      text-transform:uppercase; margin-bottom:28px;
     }
-    .tagline-btn:hover { color:var(--accent); }
+    .tagline-btn {
+      background:none; border:none; cursor:pointer; padding:0;
+      font-family:var(--mono); font-size:10px; color:var(--muted); letter-spacing:.14em;
+      text-transform:uppercase; text-decoration:underline; text-underline-offset:3px;
+      text-decoration-color:var(--border);
+    }
 
     /* tabs */
     .tabs { display:flex; gap:0; margin-bottom:24px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
@@ -257,7 +261,7 @@
 <div id="join-screen" class="screen active">
   <div class="join-card">
     <div class="logo">mesh.</div>
-    <button class="tagline-btn" onclick="openKeypad()">P2P · Firebase · GitHub Pages ready</button>
+    <div class="tagline-wrap"><button class="tagline-btn" onclick="openKeypad()">P2P</button> · Firebase · GitHub Pages ready</div>
 
     <!-- Username field (shared across tabs) -->
     <div class="field">
@@ -651,9 +655,10 @@ function getRecent() {
   try { return JSON.parse(localStorage.getItem('mesh_recent') || '[]'); } catch { return []; }
 }
 function saveRecent(key, lastMsg, dm, displayName) {
+  if (!key) return;
   let list = getRecent().filter(r => r.key !== key);
   list.unshift({ key, displayName: displayName || key, lastMsg: lastMsg || '', time: Date.now(), dm: !!dm });
-  try { localStorage.setItem('mesh_recent', JSON.stringify(list.slice(0, 8))); } catch(e) {}
+  localStorage.setItem('mesh_recent', JSON.stringify(list.slice(0, 8)));
 }
 function renderRecentChats() {
   const list = getRecent();
