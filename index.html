@@ -178,21 +178,23 @@
     .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surf);border:1px solid var(--border);color:var(--accent);font-size:12px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:700}
     .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
-    .admin-list{width:100%;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;padding-right:2px}
-    .admin-list::-webkit-scrollbar{width:3px}
-    .admin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .panel-list{width:100%;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;padding-right:2px}
+    .panel-list::-webkit-scrollbar{width:3px}
+    .panel-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
     .arow{display:flex;align-items:center;justify-content:space-between;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;gap:10px;transition:border-color .2s}
     .arow.banned{border-color:rgba(255,77,109,.25);background:rgba(255,77,109,.04)}
     .arow-info{display:flex;flex-direction:column;gap:2px;min-width:0}
     .arow-name{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .arow-name.banned{color:var(--danger)}
     .arow-time{font-size:10px;color:var(--dim)}
-    .lock-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;background:transparent;color:var(--muted);transition:all .15s;white-space:nowrap}
+    .arow-online{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 5px var(--accent)}
+    .lock-all-btn{width:100%;padding:10px;background:rgba(255,77,109,.1);border:1px solid rgba(255,77,109,.25);border-radius:8px;color:var(--danger);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;transition:background .15s}
+    .lock-all-btn:hover{background:rgba(255,77,109,.2)}
     .lock-btn:hover{border-color:var(--danger);color:var(--danger)}
     .lock-btn.locked{border-color:var(--danger);color:var(--danger)}
     .lock-btn.locked:hover{background:rgba(255,77,109,.12)}
-    .admin-empty{font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:10px 0}
-    .admin-loading{font-size:11px;color:var(--dim);text-align:center;padding:10px 0}
+    .panel-empty{font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:10px 0}
+    .panel-loading{font-size:11px;color:var(--dim);text-align:center;padding:10px 0}
 
     /* audio call */
     #call-banner{display:none;padding:11px 20px;background:rgba(124,106,255,.1);border-bottom:1px solid rgba(124,106,255,.22);flex-shrink:0;align-items:center;justify-content:space-between;gap:12px;animation:up .2s ease both}
@@ -399,13 +401,14 @@ const FB = {
 <!-- LIGHTBOX -->
 <div class="lb" id="lb" onclick="closeLB()"><img id="lb-img" src="" alt=""/></div>
 
-<!-- ADMIN PANEL -->
-<div class="mbg" id="admin-modal">
+<!-- PANEL -->
+<div class="mbg" id="panel-modal">
   <div class="modal" style="width:340px">
-    <div class="modal-t">admin panel</div>
-    <div class="modal-s">users active in the last 7 days</div>
-    <div class="admin-list" id="admin-list"><div class="admin-loading">loading...</div></div>
-    <div class="mcancel" onclick="closeAdmin()">close</div>
+    <div class="modal-t">panel</div>
+    <div class="modal-s" id="panel-sub">loading...</div>
+    <div class="panel-list" id="panel-list"><div class="panel-loading">loading...</div></div>
+    <button class="lock-all-btn" id="lock-all-btn" onclick="lockAll()" style="display:none">lock all</button>
+    <div class="mcancel" onclick="closePanel()">close</div>
   </div>
 </div>
 
@@ -423,8 +426,8 @@ let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
 
-// ── ADMIN SECRET STATE ────────────────────────────────────────
-let adminArmed = false;
+// ── SECRET STATE ────────────────────────────────────────
+let panelArmed = false;
 let dotClicks  = 0;
 let dotTimer   = null;
 let BANNED     = {}; // local cache of banned users, keyed by sanitised username
@@ -548,10 +551,14 @@ function joinDM() {
 function lockUser(name) {
   ME = name;
   localStorage.setItem('mesh_user', name);
-  // Track user presence for admin panel
+  // track user presence
   if (db) {
     const key = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
     db.ref('meta/users/'+key).set({ name: name, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+    // mark as online now — auto-removed on disconnect
+    const onlineRef = db.ref('meta/online/'+key);
+    onlineRef.set({ name: name, since: firebase.database.ServerValue.TIMESTAMP });
+    onlineRef.onDisconnect().remove();
   }
 }
 
@@ -1206,13 +1213,13 @@ function initDotSecret() {
     dotTimer = setTimeout(() => { dotClicks = 0; }, 700);
     if (dotClicks >= 3) {
       dotClicks = 0;
-      adminArmed = true;
+      panelArmed = true;
       // flash the P2P button so the user knows to click it
       const btn = document.getElementById('p2p-btn');
       btn.style.color = 'var(--accent)';
       btn.style.textDecorationColor = 'var(--accent)';
       const disarm = setTimeout(() => {
-        adminArmed = false;
+        panelArmed = false;
         btn.style.color = '';
         btn.style.textDecorationColor = '';
       }, 3000);
@@ -1223,13 +1230,13 @@ function initDotSecret() {
 }
 
 function triggerP2P() {
-  if (adminArmed) {
-    adminArmed = false;
+  if (panelArmed) {
+    panelArmed = false;
     const btn = document.getElementById('p2p-btn');
     clearTimeout(btn._disarm);
     btn.style.color = '';
     btn.style.textDecorationColor = '';
-    openAdmin();
+    openPanel();
     return;
   }
   openKP();
@@ -1263,52 +1270,131 @@ function saveName() {
 function openLB(src) { document.getElementById('lb-img').src=src; document.getElementById('lb').classList.add('on'); }
 function closeLB()   { document.getElementById('lb').classList.remove('on'); }
 
-// ── ADMIN PANEL ───────────────────────────────────────────────
-function openAdmin() {
-  document.getElementById('admin-modal').classList.add('on');
-  loadAdminUsers();
+// ── PANEL ────────────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('panel-modal').classList.add('on');
+  loadPanelUsers();
 }
-function closeAdmin() {
-  document.getElementById('admin-modal').classList.remove('on');
+function closePanel() {
+  document.getElementById('panel-modal').classList.remove('on');
 }
 
-function loadAdminUsers() {
-  const el = document.getElementById('admin-list');
-  el.innerHTML = '<div class="admin-loading">loading...</div>';
+function loadPanelUsers() {
+  const el  = document.getElementById('panel-list');
+  const sub = document.getElementById('panel-sub');
+  const lockAllBtn = document.getElementById('lock-all-btn');
+  el.innerHTML = '<div class="panel-loading">loading...</div>';
+  sub.textContent = 'loading...';
+  lockAllBtn.style.display = 'none';
+
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   Promise.all([
+    db.ref('meta/online').once('value'),
     db.ref('meta/users').orderByChild('lastSeen').startAt(weekAgo).once('value'),
     db.ref('meta/banned').once('value')
-  ]).then(([usersSnap, bannedSnap]) => {
-    const banned = bannedSnap.val() || {};
-    const users  = [];
-    usersSnap.forEach(c => users.push({ key: c.key, ...c.val() }));
+  ]).then(([onlineSnap, usersSnap, bannedSnap]) => {
+    const banned  = bannedSnap.val() || {};
+    const online  = onlineSnap.val() || {};
+    const userMap = {};
+
+    // Add weekly users
+    usersSnap.forEach(c => { userMap[c.key] = { key: c.key, ...c.val(), isOnline: false }; });
+
+    // Merge online users (may not be in weekly list if they just joined)
+    Object.entries(online).forEach(([k, v]) => {
+      if (userMap[k]) userMap[k].isOnline = true;
+      else userMap[k] = { key: k, name: v.name, lastSeen: Date.now(), isOnline: true };
+    });
+
+    const users = Object.values(userMap);
     if (!users.length) {
-      el.innerHTML = '<div class="admin-empty">no users in the last 7 days</div>';
+      el.innerHTML = '<div class="panel-empty">no users yet</div>';
+      sub.textContent = 'no users';
       return;
     }
-    users.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+
+    // Sort: online first, then by lastSeen
+    users.sort((a, b) => {
+      if (a.isOnline !== b.isOnline) return a.isOnline ? -1 : 1;
+      return (b.lastSeen || 0) - (a.lastSeen || 0);
+    });
+
+    const onlineCount = users.filter(u => u.isOnline).length;
+    sub.textContent = onlineCount + ' online now · ' + users.length + ' this week';
+    lockAllBtn.style.display = '';
+
     el.innerHTML = '';
     users.forEach(u => {
       const isBanned = !!banned[u.key];
       const row  = document.createElement('div');
       row.className = 'arow' + (isBanned ? ' banned' : '');
+
       const info = document.createElement('div');
       info.className = 'arow-info';
-      info.innerHTML =
-        '<div class="arow-name'+(isBanned?' banned':'')+'">'+h(u.name)+'</div>'+
-        '<div class="arow-time">'+ago(u.lastSeen)+'</div>';
+      info.style.flex = '1';
+
+      const nameRow = document.createElement('div');
+      nameRow.style.display = 'flex';
+      nameRow.style.alignItems = 'center';
+      nameRow.style.gap = '7px';
+
+      if (u.isOnline) {
+        const dot = document.createElement('div');
+        dot.className = 'arow-online';
+        nameRow.appendChild(dot);
+      }
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'arow-name' + (isBanned ? ' banned' : '');
+      nameEl.textContent = u.name;
+      nameRow.appendChild(nameEl);
+      info.appendChild(nameRow);
+
+      const timeEl = document.createElement('div');
+      timeEl.className = 'arow-time';
+      timeEl.textContent = u.isOnline ? 'online now' : ago(u.lastSeen);
+      info.appendChild(timeEl);
+
       const btn = document.createElement('button');
       btn.className = 'lock-btn' + (isBanned ? ' locked' : '');
       btn.textContent = isBanned ? 'unlock' : 'lock';
       btn.onclick = () => toggleBan(u.key, u.name, isBanned, btn, row, info);
+
       row.appendChild(info);
       row.appendChild(btn);
       el.appendChild(row);
     });
   }).catch(e => {
-    el.innerHTML = '<div class="admin-empty" style="color:var(--danger)">error: '+h(e.message)+'</div>';
+    el.innerHTML = '<div class="panel-empty" style="color:var(--danger)">error: '+h(e.message)+'</div>';
+    sub.textContent = 'error';
   });
+}
+
+function lockAll() {
+  if (!confirm('lock all users? they will not be able to join any chats.')) return;
+  const el = document.getElementById('panel-list');
+  const rows = el.querySelectorAll('.arow:not(.banned)');
+  if (!rows.length) { toast('no unlocked users'); return; }
+
+  const myKey = (ME||'').toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+  const updates = {};
+  // Collect all unlocked users from current list
+  el.querySelectorAll('.arow').forEach(row => {
+    const nameEl = row.querySelector('.arow-name');
+    const lockBtn = row.querySelector('.lock-btn');
+    if (nameEl && lockBtn && !lockBtn.classList.contains('locked')) {
+      const name = nameEl.textContent;
+      const key  = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+      if (key !== myKey) updates['meta/banned/'+key] = true;
+    }
+  });
+
+  if (!Object.keys(updates).length) { toast('nothing to lock'); return; }
+
+  db.ref().update(updates).then(() => {
+    toast('all users locked');
+    loadPanelUsers();
+  }).catch(e => toast('error: '+e.message));
 }
 
 function toggleBan(key, name, currentlyBanned, btn, row, info) {
@@ -1326,7 +1412,7 @@ function toggleBan(key, name, currentlyBanned, btn, row, info) {
 
 // ── KEYBOARD ──────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); closeAdmin(); return; }
+  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); closePanel(); return; }
   if (e.key!=='Enter') return;
   if (document.getElementById('nm-modal').classList.contains('on'))    { saveName(); return; }
   if (document.getElementById('chat-screen').classList.contains('active')) { send(); return; }
