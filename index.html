@@ -28,8 +28,7 @@
     @keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 
     .logo{font-family:var(--sans);font-size:2.4rem;font-weight:800;letter-spacing:-1px;color:var(--accent);margin-bottom:4px}
-    #logo-dot{cursor:pointer;display:inline-block;padding:0 3px;margin-left:-3px;border-radius:3px;transition:background .15s}
-    #logo-dot:hover{background:rgba(0,229,160,.12)}
+    #logo-dot{cursor:pointer;display:inline-block;padding:0 3px;margin-left:-3px;border-radius:3px}
     .tagline{font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:28px}
     .tagline button{background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--border);padding:0}
 
@@ -179,7 +178,6 @@
     .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surf);border:1px solid var(--border);color:var(--accent);font-size:12px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:700}
     .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
-    /* admin panel */
     .admin-list{width:100%;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;padding-right:2px}
     .admin-list::-webkit-scrollbar{width:3px}
     .admin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
@@ -220,6 +218,22 @@
 
     #call-btn{display:none}
     #call-btn.dm-active{display:flex}
+
+    /* dm invites */
+    .invite-sec{margin-top:20px}
+    .invite-sec:empty{display:none}
+    .invite-title{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dm);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    .invite-title::after{content:'';flex:1;height:1px;background:rgba(124,106,255,.2)}
+    .invite-item{display:flex;align-items:center;justify-content:space-between;background:rgba(124,106,255,.07);border:1px solid rgba(124,106,255,.18);border-radius:8px;padding:10px 14px;gap:10px;animation:up .2s ease both}
+    .invite-left{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .invite-name{font-size:13px;color:var(--dm)}
+    .invite-sub{font-size:10px;color:var(--dim)}
+    .invite-btns{display:flex;gap:7px;flex-shrink:0}
+    .inv-btn{font-family:var(--mono);font-size:11px;font-weight:700;padding:5px 13px;border-radius:20px;border:none;cursor:pointer;transition:opacity .15s}
+    .inv-btn:hover{opacity:.8}
+    .inv-btn.open{background:var(--dm);color:#fff}
+    .inv-btn.dis{background:transparent;color:var(--muted);border:1px solid var(--border)}
+    .inv-btn.dis:hover{border-color:var(--danger);color:var(--danger)}
 
     @media(max-width:500px){
       .msg{max-width:88%}
@@ -272,8 +286,10 @@ const FB = {
         <input type="text" id="dm-in" placeholder="their username" maxlength="24" autocomplete="off" spellcheck="false"/>
       </div>
       <button class="jbtn dm" onclick="joinDM()">open conversation &rarr;</button>
-      <div class="dm-note">Both need to use the <b>same username</b> they registered with.</div>
+      <div class="dm-note">Enter their username below &mdash; they will see a <b>join notification</b> on their screen automatically.</div>
     </div>
+
+    <div class="invite-sec" id="invite-sec"></div>
 
     <div class="rec-sec">
       <div class="rec-title">recent chats</div>
@@ -319,8 +335,7 @@ const FB = {
     <button class="cxbtn sm end" onclick="hangup()">end</button>
   </div>
 
-  <!-- hidden audio for remote stream -->
-  <audio id="remote-audio" autoplay playsinline style="display:none"></audio>
+  <!-- hidden audio container for remote peers (created dynamically) -->
   <div id="msgs"></div>
   <div class="iprev" id="iprev">
     <img id="ithumb" src="" alt=""/>
@@ -413,18 +428,24 @@ let adminArmed = false;
 let dotClicks  = 0;
 let dotTimer   = null;
 let BANNED     = {}; // local cache of banned users, keyed by sanitised username
+let inviteUnsub = null; // Firebase listener for incoming DM invites
 
-// ── CALL STATE ────────────────────────────────────────────────
-let DM_PEER    = '';       // other person's display name in current DM
-let pc         = null;     // RTCPeerConnection
-let localStream= null;
-let callRef    = null;     // Firebase ref for call signaling
-let callUnsub  = [];       // Firebase listeners to detach on cleanup
-let callSecs   = 0;
-let callTick   = null;
-let isMuted    = false;
-let amCaller   = false;
-const ICE = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
+// ── CALL STATE (mesh — works for DMs and group rooms) ─────────
+let peers       = {};   // { peerKey: RTCPeerConnection }
+let peerUnsubs  = {};   // { peerKey: [unsub fns] }
+let localStream = null;
+let callRef     = null;
+let callUnsub   = [];
+let callSecs    = 0;
+let callTick    = null;
+let isMuted     = false;
+let DM_PEER     = '';   // kept for DM invite writing
+let callWatcherUnsub = null; // separate from callUnsub — just watches for active calls
+const ICE = { iceServers:[
+  {urls:'stun:stun.l.google.com:19302'},
+  {urls:'stun:stun1.l.google.com:19302'}
+]};
+function myCallKey(){ return (ME||'').toLowerCase().replace(/[.#$\/\[\]]/g,'_'); }
 
 // ── INIT ───────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -435,13 +456,30 @@ window.addEventListener('DOMContentLoaded', () => {
   );
 
   // Keep banned list in sync locally — silent, fails gracefully
-  db.ref('meta/banned').on('value', snap => { BANNED = snap.val() || {}; }, () => { BANNED = {}; });
+  // Also kicks the current user out instantly if they get banned mid-chat
+  db.ref('meta/banned').on('value', snap => {
+    BANNED = snap.val() || {};
+    if (ME) {
+      const myKey = ME.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+      if (BANNED[myKey] === true && document.getElementById('chat-screen').classList.contains('active')) {
+        leaveRoom();
+        toast('you have been removed from this chat');
+      }
+    }
+  }, () => { BANNED = {}; });
 
   // Load saved username
   const saved = localStorage.getItem('mesh_user');
   if (saved) {
     document.getElementById('uname').value = saved;
+    listenForInvites(saved);
   }
+
+  // Re-subscribe to invites whenever username field changes
+  document.getElementById('uname').addEventListener('input', e => {
+    const v = e.target.value.trim();
+    if (v) listenForInvites(v); else clearInvites();
+  });
 
   renderRecent();
 
@@ -542,8 +580,8 @@ function startChat(path, label, dm, recKey, recDisplay) {
   document.getElementById('hdr-meta').textContent = 'you — '+ME;
   document.getElementById('mi').className = dm ? 'dm' : '';
   document.getElementById('sbtn').className = 'sbtn'+(dm?' dm':'');
-  // show call button only in DMs
-  document.getElementById('call-btn').className = 'ibtn' + (dm ? ' dm-active' : '');
+  // call button visible in both DMs and rooms
+  document.getElementById('call-btn').className = 'ibtn dm-active';
 
   // URL
   try {
@@ -554,6 +592,8 @@ function startChat(path, label, dm, recKey, recDisplay) {
   } catch(e){}
 
   showScreen('chat-screen');
+  // Pause invite listener while in chat
+  if (inviteUnsub) { try { inviteUnsub(); } catch(e){} inviteUnsub = null; }
 
   // Firebase
   ref = db.ref(path+'/messages');
@@ -576,22 +616,33 @@ function startChat(path, label, dm, recKey, recDisplay) {
 
   setTimeout(() => document.getElementById('mi').focus(), 100);
 
-  // ── set up incoming call listener for DMs ──
-  if (dm) {
-    teardownCall(false); // clean up any previous call state
-    callRef = db.ref('calls/' + recKey);
-    const incomingUnsub = callRef.on('value', snap => {
-      const data = snap.val();
-      if (!data) { hideBanner(); return; }
-      // Only show banner if there's a ringing call from someone else
-      if (data.status === 'ringing' && data.caller && data.caller.toLowerCase() !== ME.toLowerCase()) {
-        document.getElementById('cb-caller-name').textContent = data.caller;
+  // ── watch for active calls in this room/DM ──
+  // Detach any previous watcher first
+  if (callWatcherUnsub) { try { callWatcherUnsub(); } catch(e){} callWatcherUnsub = null; }
+  try { document.getElementById('call-banner').classList.remove('on'); } catch(e){}
+
+  callRef = db.ref('calls/' + recKey);
+  const _partRef = callRef.child('participants');
+  const _partFn  = _partRef.on('value', snap => {
+    try {
+      const parts  = snap.val() || {};
+      const mk     = myCallKey();
+      const others = Object.entries(parts).filter(([k]) => k !== mk);
+      if (others.length && !localStream) {
+        document.getElementById('cb-caller-name').textContent = others.map(([,v]) => v.name).join(', ');
         document.getElementById('call-banner').classList.add('on');
-      } else if (!data.status || data.status === 'ended') {
-        hideBanner();
+      } else if (!others.length) {
+        document.getElementById('call-banner').classList.remove('on');
       }
-    });
-    callUnsub.push(() => callRef.off('value', incomingUnsub));
+    } catch(e){}
+  });
+  callWatcherUnsub = () => _partRef.off('value', _partFn);
+
+  if (dm) {
+    const peerKey = recDisplay.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+    db.ref('meta/dmInvites/'+peerKey+'/'+myCallKey()).set({
+      from: ME, dmKey: recKey, time: firebase.database.ServerValue.TIMESTAMP
+    }).catch(()=>{});
   }
 }
 
@@ -789,19 +840,43 @@ function delMsg(key, el) {
 
 // ── LEAVE ─────────────────────────────────────────────────────
 function leaveRoom() {
-  teardownCall(true);
-  if (ref && unsub) try { ref.off('child_added', unsub); } catch(e){}
-  ref=null; unsub=null; rendered.clear(); lastDay=null; editing=false;
-  document.getElementById('msgs').innerHTML='';
-  document.getElementById('msgs').classList.remove('edit-mode');
-  document.getElementById('cdot').classList.remove('on');
-  clearImg(); hideErr();
+  // Each step wrapped individually — nothing can block showScreen
+
+  try { if (callRef && ME) callRef.child('participants/'+myCallKey()).remove(); } catch(e){}
+  try { Object.keys(peers).forEach(k => closePeer(k)); peers={}; peerUnsubs={}; } catch(e){}
+  try { callUnsub.forEach(fn=>{try{fn();}catch(e){}}); callUnsub=[]; } catch(e){}
+  try { if (callWatcherUnsub) { callWatcherUnsub(); callWatcherUnsub=null; } } catch(e){}
+  try { if (localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;} } catch(e){}
+  try { document.querySelectorAll('.peer-audio').forEach(el=>el.remove()); } catch(e){}
+  try { clearInterval(callTick); callTick=null; callSecs=0; isMuted=false; } catch(e){}
+  try { document.getElementById('call-bar').classList.remove('on'); } catch(e){}
+  try { document.getElementById('call-banner').classList.remove('on'); } catch(e){}
+
+  try { if (ref && unsub) ref.off('child_added', unsub); } catch(e){}
+  try { if (inviteUnsub) { inviteUnsub(); inviteUnsub = null; } } catch(e){}
+
+  ref=null; unsub=null;
+  try { rendered.clear(); } catch(e){}
+  lastDay=null; editing=false;
+
+  try { document.getElementById('msgs').innerHTML=''; } catch(e){}
+  try { document.getElementById('msgs').classList.remove('edit-mode'); } catch(e){}
+  try { document.getElementById('edit-btn').classList.remove('edit-on'); } catch(e){}
+  try { document.getElementById('cdot').classList.remove('on'); } catch(e){}
+  try { document.getElementById('call-btn').className='ibtn'; } catch(e){}
+  try { clearImg(); } catch(e){}
+  try { hideErr(); } catch(e){}
+
   try {
     const u = new URL(location.href);
-    u.searchParams.delete('room'); u.searchParams.delete('dm');
-    history.replaceState({},'',$u);
+    u.searchParams.delete('room');
+    u.searchParams.delete('dm');
+    history.replaceState({}, '', u);
   } catch(e){}
-  renderRecent();
+
+  try { renderRecent(); } catch(e){}
+  try { const n=localStorage.getItem('mesh_user'); if(n) listenForInvites(n); } catch(e){}
+
   showScreen('join-screen');
 }
 
@@ -809,133 +884,160 @@ function copyLink() {
   try { navigator.clipboard.writeText(location.href).then(()=>toast('link copied')); } catch(e){}
 }
 
-// ── WEBRTC AUDIO CALL ─────────────────────────────────────────
+// ── WEBRTC MESH CALL ──────────────────────────────────────────
+// Works for both DMs (2 people) and group rooms (N people).
+// The newly joining person sends offers to all existing participants.
+// Existing participants respond with answers.
+// Firebase structure: calls/{ROOM}/participants/{key}, signals/{toKey}/{fromKey}, candidates/{toKey}/{fromKey}/{id}
+
 async function startCall() {
-  if (!IS_DM) return;
-  if (pc) { toast('already in a call'); return; }
+  if (localStream) { toast('already in call'); return; }
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch(e) {
-    toast('microphone access denied'); return;
-  }
-  amCaller = true;
-  pc = new RTCPeerConnection(ICE);
+  } catch(e) { toast('microphone access denied'); return; }
+
+  hideBanner();
+  showCallBar('connecting...');
+
+  const mk = myCallKey();
+
+  // Register presence — auto-remove on disconnect
+  const presRef = callRef.child('participants/' + mk);
+  await presRef.set({ name: ME, joinedAt: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+  presRef.onDisconnect().remove();
+  callUnsub.push(() => { try { presRef.onDisconnect().cancel(); presRef.remove(); } catch(e){} });
+
+  // Listen for signals addressed to me (offers + answers from peers)
+  const sigRef = callRef.child('signals/' + mk);
+  const sigUn = sigRef.on('child_added', async snap => {
+    const fromKey = snap.key;
+    const data = snap.val();
+    if (!data) return;
+    if (data.type === 'offer')  await handleOffer(fromKey, data.sdp);
+    if (data.type === 'answer') await handleAnswer(fromKey, data.sdp);
+  });
+  callUnsub.push(() => sigRef.off('child_added', sigUn));
+
+  // Listen for new participants joining after me → they'll send me an offer, nothing to do
+  // Listen for participants leaving → close their peer connection
+  const partRef = callRef.child('participants');
+  const partRemUn = partRef.on('child_removed', snap => {
+    if (snap.key !== mk) closePeer(snap.key);
+    updateCallBar();
+  });
+  const partAddUn = partRef.on('child_added', () => updateCallBar());
+  callUnsub.push(() => { partRef.off('child_removed', partRemUn); partRef.off('child_added', partAddUn); });
+
+  // Get all current participants and send them offers
+  const snap = await callRef.child('participants').once('value');
+  const existing = [];
+  snap.forEach(c => { if (c.key !== mk) existing.push(c.key); });
+  for (const peerKey of existing) await createOfferTo(peerKey);
+
+  startCallTimer();
+  updateCallBar();
+}
+
+// Called when we're already in a call and someone joins — they send us an offer
+async function handleOffer(fromKey, sdp) {
+  if (peers[fromKey]) return; // already have a connection
+  const mk = myCallKey();
+  const pc = new RTCPeerConnection(ICE);
+  peers[fromKey] = pc;
+  peerUnsubs[fromKey] = [];
+
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  pc.ontrack = e => { playRemote(e.streams[0]); };
+  pc.ontrack = e => playRemoteForPeer(fromKey, e.streams[0]);
+  pc.onicecandidate = e => {
+    if (e.candidate) callRef.child('candidates/'+fromKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
+  };
   pc.onconnectionstatechange = () => {
-    if (pc && (pc.connectionState === 'connected')) { startCallTimer(); updateCallBar('with ' + DM_PEER); }
-    if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) hangup();
+    if (pc.connectionState==='failed'||pc.connectionState==='disconnected') closePeer(fromKey);
   };
 
-  // Write ICE candidates as they come
+  // Listen for ICE candidates from this peer
+  const candRef = callRef.child('candidates/'+mk+'/'+fromKey);
+  const candUn = candRef.on('child_added', snap => {
+    if (snap.val() && peers[fromKey]) peers[fromKey].addIceCandidate(new RTCIceCandidate(snap.val())).catch(()=>{});
+  });
+  peerUnsubs[fromKey].push(() => candRef.off('child_added', candUn));
+
+  await pc.setRemoteDescription(new RTCSessionDescription({ type:'offer', sdp }));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp: answer.sdp }).catch(()=>{});
+  updateCallBar();
+}
+
+// Called when someone we offered to sends back an answer
+async function handleAnswer(fromKey, sdp) {
+  const pc = peers[fromKey];
+  if (!pc || pc.remoteDescription) return;
+  try { await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp })); } catch(e){}
+  updateCallBar();
+}
+
+// We initiate connection to an existing participant
+async function createOfferTo(peerKey) {
+  if (peers[peerKey]) return;
+  const mk = myCallKey();
+  const pc = new RTCPeerConnection(ICE);
+  peers[peerKey] = pc;
+  peerUnsubs[peerKey] = [];
+
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  pc.ontrack = e => playRemoteForPeer(peerKey, e.streams[0]);
   pc.onicecandidate = e => {
-    if (e.candidate && callRef) callRef.child('callerCandidates').push(e.candidate.toJSON());
+    if (e.candidate) callRef.child('candidates/'+peerKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
   };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState==='failed'||pc.connectionState==='disconnected') closePeer(peerKey);
+  };
+
+  // Listen for ICE candidates from this peer
+  const candRef = callRef.child('candidates/'+mk+'/'+peerKey);
+  const candUn = candRef.on('child_added', snap => {
+    if (snap.val() && peers[peerKey]) peers[peerKey].addIceCandidate(new RTCIceCandidate(snap.val())).catch(()=>{});
+  });
+  peerUnsubs[peerKey].push(() => candRef.off('child_added', candUn));
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
-
-  // Write offer to Firebase — this signals the other side
-  await callRef.set({ caller: ME, status: 'ringing', offer: { type: offer.type, sdp: offer.sdp } });
-
-  // Listen for answer
-  const ansUnsub = callRef.child('answer').on('value', async snap => {
-    if (!snap.val() || !pc || pc.remoteDescription) return;
-    try { await pc.setRemoteDescription(new RTCSessionDescription(snap.val())); } catch(e){}
-  });
-  callUnsub.push(() => callRef.child('answer').off('value', ansUnsub));
-
-  // Listen for callee ICE candidates
-  const ceeUnsub = callRef.child('calleeCandidates').on('child_added', async snap => {
-    if (!snap.val() || !pc) return;
-    try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch(e){}
-  });
-  callUnsub.push(() => callRef.child('calleeCandidates').off('child_added', ceeUnsub));
-
-  // Watch for hangup from other side
-  const statusUnsub = callRef.child('status').on('value', snap => {
-    if (snap.val() === 'ended') hangup();
-  });
-  callUnsub.push(() => callRef.child('status').off('value', statusUnsub));
-
-  showCallBar('calling ' + DM_PEER + '...');
-
-  // No answer timeout — 30 seconds
-  setTimeout(() => { if (pc && pc.connectionState !== 'connected') { hangup(); toast('no answer'); } }, 30000);
+  await callRef.child('signals/'+peerKey+'/'+mk).set({ type:'offer', sdp: offer.sdp }).catch(()=>{});
 }
 
-async function acceptCall() {
-  hideBanner();
-  const snap = await callRef.once('value');
-  const data  = snap.val();
-  if (!data || !data.offer) { toast('call expired'); return; }
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch(e) {
-    toast('microphone access denied'); return;
+function closePeer(peerKey) {
+  if (peerUnsubs[peerKey]) { peerUnsubs[peerKey].forEach(fn=>{try{fn();}catch(e){}}); delete peerUnsubs[peerKey]; }
+  if (peers[peerKey]) { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
+  // Remove their audio element
+  const el = document.getElementById('audio-'+peerKey);
+  if (el) el.remove();
+}
+
+function acceptCall() { startCall(); }
+function declineCall() { hideBanner(); }
+
+function hangup() { teardownCall(); }
+
+function teardownCall() {
+  // Leave participants list
+  if (callRef && ME) {
+    try { callRef.child('participants/'+myCallKey()).remove(); } catch(e){}
   }
-  amCaller = false;
-  pc = new RTCPeerConnection(ICE);
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  pc.ontrack = e => { playRemote(e.streams[0]); };
-  pc.onconnectionstatechange = () => {
-    if (pc && pc.connectionState === 'connected') { startCallTimer(); updateCallBar('with ' + data.caller); }
-    if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) hangup();
-  };
-
-  // Write our ICE candidates
-  pc.onicecandidate = e => {
-    if (e.candidate && callRef) callRef.child('calleeCandidates').push(e.candidate.toJSON());
-  };
-
-  await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await callRef.child('answer').set({ type: answer.type, sdp: answer.sdp });
-  await callRef.child('status').set('connected');
-
-  // Listen for caller ICE candidates
-  const crrUnsub = callRef.child('callerCandidates').on('child_added', async snap => {
-    if (!snap.val() || !pc) return;
-    try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch(e){}
-  });
-  callUnsub.push(() => callRef.child('callerCandidates').off('child_added', crrUnsub));
-
-  // Watch for hangup from caller
-  const statusUnsub = callRef.child('status').on('value', snap => {
-    if (snap.val() === 'ended') hangup();
-  });
-  callUnsub.push(() => callRef.child('status').off('value', statusUnsub));
-
-  showCallBar('connecting...');
-}
-
-function declineCall() {
-  hideBanner();
-  if (callRef) callRef.child('status').set('ended');
-}
-
-function hangup() {
-  if (callRef && amCaller) callRef.child('status').set('ended').catch(()=>{});
-  teardownCall(false);
-}
-
-function teardownCall(writeEnded) {
-  if (writeEnded && callRef && amCaller) { try { callRef.child('status').set('ended'); } catch(e){} }
-  // Detach all call-related Firebase listeners
-  callUnsub.forEach(fn => { try { fn(); } catch(e){} });
+  // Close all peer connections
+  Object.keys(peers).forEach(k => closePeer(k));
+  peers = {}; peerUnsubs = {};
+  // Detach call-level Firebase listeners
+  callUnsub.forEach(fn => { try{fn();}catch(e){} });
   callUnsub = [];
-  // Close peer connection
-  if (pc) { try { pc.close(); } catch(e){} pc = null; }
-  // Stop local mic
-  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-  // Stop remote audio
-  const ra = document.getElementById('remote-audio');
-  ra.srcObject = null;
-  // Clear call timer
+  // Stop mic
+  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  // Clear timer
   clearInterval(callTick); callTick = null; callSecs = 0;
-  isMuted = false; amCaller = false;
+  isMuted = false;
   hideCallBar(); hideBanner();
+  // Remove all peer audio elements
+  document.querySelectorAll('.peer-audio').forEach(el=>el.remove());
 }
 
 function toggleMute() {
@@ -947,8 +1049,16 @@ function toggleMute() {
   btn.className   = 'cxbtn sm' + (isMuted ? ' muted' : '');
 }
 
-function playRemote(stream) {
-  const a = document.getElementById('remote-audio');
+function playRemoteForPeer(peerKey, stream) {
+  let a = document.getElementById('audio-'+peerKey);
+  if (!a) {
+    a = document.createElement('audio');
+    a.id = 'audio-'+peerKey;
+    a.className = 'peer-audio';
+    a.autoplay = true;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+  }
   a.srcObject = stream;
   a.play().catch(()=>{});
 }
@@ -960,23 +1070,25 @@ function showCallBar(label) {
   document.getElementById('mute-btn').textContent = 'mute';
   document.getElementById('mute-btn').className   = 'cxbtn sm';
 }
-function updateCallBar(label) {
-  document.getElementById('cb-label').textContent = label;
+
+function updateCallBar() {
+  if (!callRef || !localStream) return;
+  callRef.child('participants').once('value', snap => {
+    const count = snap.numChildren();
+    document.getElementById('cb-label').textContent =
+      count <= 1 ? 'waiting...' : count + ' in call';
+  });
 }
-function hideCallBar() {
-  document.getElementById('call-bar').classList.remove('on');
-}
-function hideBanner() {
-  document.getElementById('call-banner').classList.remove('on');
-}
+
+function hideCallBar() { document.getElementById('call-bar').classList.remove('on'); }
+function hideBanner()  { document.getElementById('call-banner').classList.remove('on'); }
+
 function startCallTimer() {
-  clearInterval(callTick);
-  callSecs = 0;
+  clearInterval(callTick); callSecs = 0;
   callTick = setInterval(() => {
     callSecs++;
-    const m = Math.floor(callSecs / 60);
-    const s = String(callSecs % 60).padStart(2, '0');
-    document.getElementById('cb-timer').textContent = m + ':' + s;
+    const m = Math.floor(callSecs/60), s = String(callSecs%60).padStart(2,'0');
+    document.getElementById('cb-timer').textContent = m+':'+s;
   }, 1000);
 }
 
@@ -1021,6 +1133,69 @@ function ago(ts) {
   if (s<3600)  return Math.floor(s/60)+'m ago';
   if (s<86400) return Math.floor(s/3600)+'h ago';
   return Math.floor(s/86400)+'d ago';
+}
+
+// ── DM INVITES ────────────────────────────────────────────────
+function listenForInvites(name) {
+  // Detach any previous listener
+  if (inviteUnsub) { try { inviteUnsub(); } catch(e){} inviteUnsub = null; }
+  clearInvites();
+  const myKey = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+  const invRef = db.ref('meta/dmInvites/'+myKey);
+  const fn = invRef.on('value', snap => {
+    const data = snap.val();
+    if (!data) { clearInvites(); return; }
+    // Filter to invites less than 2 hours old
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    const fresh = Object.entries(data)
+      .filter(([, v]) => v && v.time > cutoff)
+      .sort(([,a],[,b]) => b.time - a.time);
+    // Remove stale invites silently
+    Object.entries(data).forEach(([k,v]) => {
+      if (!v || v.time <= cutoff) invRef.child(k).remove().catch(()=>{});
+    });
+    renderInvites(fresh, myKey);
+  }, () => clearInvites());
+  inviteUnsub = () => invRef.off('value', fn);
+}
+
+function renderInvites(list, myKey) {
+  const sec = document.getElementById('invite-sec');
+  if (!list.length) { sec.innerHTML = ''; return; }
+  sec.innerHTML =
+    '<div class="invite-title">dm requests</div>' +
+    list.map(([senderKey, v]) =>
+      '<div class="invite-item">' +
+        '<div class="invite-left">' +
+          '<div class="invite-name">' + h(v.from) + ' wants to chat</div>' +
+          '<div class="invite-sub">' + ago(v.time) + '</div>' +
+        '</div>' +
+        '<div class="invite-btns">' +
+          '<button class="inv-btn open" onclick="acceptDmInvite('+JSON.stringify(v.from)+','+JSON.stringify(v.dmKey)+','+JSON.stringify(senderKey)+','+JSON.stringify(myKey)+')">open</button>' +
+          '<button class="inv-btn dis"  onclick="dismissDmInvite('+JSON.stringify(senderKey)+','+JSON.stringify(myKey)+')">dismiss</button>' +
+        '</div>' +
+      '</div>'
+    ).join('');
+}
+
+function acceptDmInvite(fromName, dmKey, senderKey, myKey) {
+  // Remove the invite then join
+  db.ref('meta/dmInvites/'+myKey+'/'+senderKey).remove().catch(()=>{});
+  const myName = document.getElementById('uname').value.trim();
+  if (!myName) { toast('enter your name first'); document.getElementById('uname').focus(); return; }
+  const bkey = myName.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+  if (BANNED[bkey] === true) { toast('this account has been restricted'); return; }
+  lockUser(myName);
+  DM_PEER = fromName;
+  startChat('dms/'+dmKey, '@'+fromName, true, dmKey, fromName);
+}
+
+function dismissDmInvite(senderKey, myKey) {
+  db.ref('meta/dmInvites/'+myKey+'/'+senderKey).remove().catch(()=>{});
+}
+
+function clearInvites() {
+  document.getElementById('invite-sec').innerHTML = '';
 }
 
 // ── SECRET SEQUENCE ───────────────────────────────────────────
