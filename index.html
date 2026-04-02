@@ -99,6 +99,8 @@
     .msg.them.dm .mbub{background:#1a1730;border-color:rgba(124,106,255,.15);color:var(--text)}
     .mimg{max-width:220px;max-height:220px;border-radius:10px;display:block;cursor:pointer;border:1px solid var(--border)}
     .msg.me .mimg{border-color:rgba(0,229,160,.2)}
+    .mvid{max-width:260px;max-height:200px;border-radius:10px;display:block;border:1px solid var(--border);background:#000;outline:none}
+    .msg.me .mvid{border-color:rgba(0,229,160,.2)}
 
     /* clickable links inside bubbles */
     .mbub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(0,229,160,.4);word-break:break-all;transition:opacity .15s}
@@ -237,6 +239,16 @@
     .inv-btn.dis{background:transparent;color:var(--muted);border:1px solid var(--border)}
     .inv-btn.dis:hover{border-color:var(--danger);color:var(--danger)}
 
+    /* in-app notification bar */
+    #notif-bar{display:none;position:fixed;top:0;left:0;right:0;z-index:600;padding:11px 20px;background:var(--surf2);border-bottom:1px solid var(--border);align-items:center;gap:10px;animation:slideDown .2s ease both;cursor:pointer}
+    #notif-bar.on{display:flex}
+    @keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+    #notif-bar:hover{background:var(--border)}
+    .nb-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+    .nb-text{font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .nb-sender{color:var(--accent);font-weight:600}
+    .nb-x{font-size:14px;color:var(--muted);flex-shrink:0;line-height:1}
+
     @media(max-width:500px){
       .msg{max-width:88%}
       .hdr,.ftr{padding:11px 14px}
@@ -341,7 +353,8 @@ const FB = {
   <!-- hidden audio container for remote peers (created dynamically) -->
   <div id="msgs"></div>
   <div class="iprev" id="iprev">
-    <img id="ithumb" src="" alt=""/>
+    <img id="ithumb" src="" alt="" style="display:none"/>
+    <video id="vthumb" muted playsinline style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);display:none"></video>
     <span class="iprev-name" id="iname"></span>
     <span class="iprev-x" onclick="clearImg()">cancel</span>
   </div>
@@ -353,13 +366,13 @@ const FB = {
           <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.22 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
         </svg>
       </button>
-      <button class="ibtn" onclick="document.getElementById('img-pick').click()" title="send image">
+      <button class="ibtn" onclick="document.getElementById('img-pick').click()" title="send image or video">
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
           <polyline points="21 15 16 10 5 21"/>
         </svg>
       </button>
-      <input type="file" id="img-pick" accept="image/*" onchange="imgPicked(event)"/>
+      <input type="file" id="img-pick" accept="image/*,video/*" onchange="imgPicked(event)"/>
       <button class="sbtn" id="sbtn" onclick="send()">
         <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -413,6 +426,12 @@ const FB = {
   </div>
 </div>
 
+<div id="notif-bar" onclick="dismissNotifBar()">
+  <div class="nb-dot"></div>
+  <div class="nb-text"><span class="nb-sender" id="nb-sender"></span> <span id="nb-body"></span></div>
+  <div class="nb-x">&#x2715;</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -427,6 +446,7 @@ let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
 const VERSION = '1.0.0';
+let unread = 0; // unread message counter for tab title
 
 // ── SECRET STATE ────────────────────────────────────────
 let panelArmed = false;
@@ -438,6 +458,7 @@ let inviteUnsub = null; // Firebase listener for incoming DM invites
 // ── CALL STATE (mesh — works for DMs and group rooms) ─────────
 let peers       = {};   // { peerKey: RTCPeerConnection }
 let peerUnsubs  = {};   // { peerKey: [unsub fns] }
+let candBuffer  = {};   // { peerKey: [RTCIceCandidateInit] } — buffered until remoteDescription is set
 let localStream = null;
 let callRef     = null;
 let callUnsub   = [];
@@ -507,6 +528,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   initDotSecret();
+
+  // Clear unread count when user focuses the tab
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      unread = 0;
+      document.title = 'mesh. chat';
+      dismissNotifBar();
+    }
+  });
 });
 
 function tryAuto() {
@@ -676,40 +706,71 @@ function send() {
     });
 }
 
-// ── SEND IMAGE ────────────────────────────────────────────────
+// ── SEND IMAGE / VIDEO ────────────────────────────────────────
+let pendType = 'image'; // 'image' or 'video'
+
 function imgPicked(e) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 5*1024*1024) { toast('max 5 MB'); return; }
+  const isVideo = file.type.startsWith('video/');
+  const maxSize = isVideo ? 20 * 1024 * 1024 : 5 * 1024 * 1024;
+  const maxLabel = isVideo ? '20 MB' : '5 MB';
+  if (file.size > maxSize) { toast('max ' + maxLabel); e.target.value=''; return; }
+
+  pendType = isVideo ? 'video' : 'image';
   const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX=800; let w=img.width, h=img.height;
-      if (w>MAX||h>MAX) { if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
-      const c=document.createElement('canvas'); c.width=w; c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      const url=c.toDataURL('image/jpeg',.72);
-      pendImg=url;
-      document.getElementById('ithumb').src=url;
-      document.getElementById('iname').textContent=file.name;
+
+  if (isVideo) {
+    reader.onload = ev => {
+      pendImg = ev.target.result;
+      const vt = document.getElementById('vthumb');
+      const it = document.getElementById('ithumb');
+      vt.src = ev.target.result;
+      vt.style.display = '';
+      it.style.display = 'none';
+      document.getElementById('iname').textContent = file.name;
       document.getElementById('iprev').classList.add('on');
     };
-    img.src=ev.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  } else {
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX=800; let w=img.width, h=img.height;
+        if (w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        const url=c.toDataURL('image/jpeg',.72);
+        pendImg=url;
+        const it = document.getElementById('ithumb');
+        const vt = document.getElementById('vthumb');
+        it.src = url;
+        it.style.display = '';
+        vt.style.display = 'none';
+        document.getElementById('iname').textContent=file.name;
+        document.getElementById('iprev').classList.add('on');
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
   e.target.value='';
 }
+
 function clearImg() {
-  pendImg=null;
+  pendImg=null; pendType='image';
   document.getElementById('iprev').classList.remove('on');
   document.getElementById('ithumb').src='';
+  document.getElementById('ithumb').style.display='none';
+  document.getElementById('vthumb').src='';
+  document.getElementById('vthumb').style.display='none';
 }
+
 function sendImg() {
   if (!pendImg||!ref) return;
-  const url=pendImg; clearImg();
-  ref.push({user:ME, type:'image', dataUrl:url, time:firebase.database.ServerValue.TIMESTAMP})
-    .catch(e => showErr('image send failed: '+e.message));
+  const url=pendImg; const type=pendType; clearImg();
+  ref.push({user:ME, type, dataUrl:url, time:firebase.database.ServerValue.TIMESTAMP})
+    .catch(e => showErr(type+' send failed: '+e.message));
 }
 
 // ── PROFANITY FILTER ──────────────────────────────────────────
@@ -800,6 +861,14 @@ function addMsg(data, notify) {
     img.src       = data.dataUrl;
     img.onclick   = () => openLB(data.dataUrl);
     wrap.appendChild(img);
+  } else if (data.type === 'video') {
+    const vid = document.createElement('video');
+    vid.className = 'mvid';
+    vid.controls  = true;
+    vid.playsinline = true;
+    vid.preload   = 'metadata';
+    vid.src       = data.dataUrl;
+    wrap.appendChild(vid);
   } else {
     const bub = document.createElement('div');
     bub.className = 'mbub';
@@ -813,25 +882,72 @@ function addMsg(data, notify) {
 
   // Push notification for incoming messages
   if (notify && !isMe) {
-    sendNotif(data.user, data.type==='image' ? 'sent an image' : data.text);
+    sendNotif(data.user, data.type==='image' ? 'sent an image' : data.type==='video' ? 'sent a video' : data.text);
   }
 }
 
 // ── NOTIFICATIONS ─────────────────────────────────────────────
 function sendNotif(sender, body) {
-  if (document.visibilityState === 'visible') return; // only when tab is hidden
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') {
-    Notification.requestPermission(); return;
+  // 1. Always play a soft chime
+  playChime();
+
+  // 2. Increment unread + update tab title when hidden
+  if (document.visibilityState !== 'visible') {
+    unread++;
+    document.title = '(' + unread + ') mesh. chat';
   }
-  try {
-    new Notification('mesh. — '+sender, {
-      body: body,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300e5a0"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="18" fill="%23000" font-family="sans-serif">m</text></svg>',
-      badge:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300e5a0"/></svg>',
-      silent: false
+
+  // 3. In-app bar when tab IS visible
+  if (document.visibilityState === 'visible') {
+    document.getElementById('nb-sender').textContent = sender;
+    document.getElementById('nb-body').textContent   = body.length > 60 ? body.slice(0, 57) + '...' : body;
+    const bar = document.getElementById('notif-bar');
+    bar.classList.add('on');
+    clearTimeout(bar._t);
+    bar._t = setTimeout(() => bar.classList.remove('on'), 3500);
+    return;
+  }
+
+  // 4. Browser push notification when tab is hidden
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    try {
+      new Notification('mesh. — ' + sender, {
+        body,
+        icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300e5a0"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="18" fill="%23000" font-family="sans-serif">m</text></svg>',
+        badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%2300e5a0"/></svg>',
+        tag: 'mesh-msg',
+        renotify: true
+      });
+    } catch(e) {}
+  } else if (Notification.permission === 'default') {
+    // Request then retry once
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') sendNotif(sender, body);
     });
-  } catch(e){}
+  }
+}
+
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.3);
+    osc.onended = () => ctx.close();
+  } catch(e) {}
+}
+
+function dismissNotifBar() {
+  document.getElementById('notif-bar').classList.remove('on');
 }
 
 // ── DELETE ────────────────────────────────────────────────────
@@ -876,6 +992,7 @@ function leaveRoom() {
   try { document.getElementById('call-btn').className='ibtn'; } catch(e){}
   try { clearImg(); } catch(e){}
   try { hideErr(); } catch(e){}
+  try { unread=0; document.title='mesh. chat'; dismissNotifBar(); } catch(e){}
 
   try {
     const u = new URL(location.href);
@@ -955,6 +1072,7 @@ async function handleOffer(fromKey, sdp) {
   const pc = new RTCPeerConnection(ICE);
   peers[fromKey] = pc;
   peerUnsubs[fromKey] = [];
+  candBuffer[fromKey] = [];
 
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   pc.ontrack = e => playRemoteForPeer(fromKey, e.streams[0]);
@@ -965,14 +1083,26 @@ async function handleOffer(fromKey, sdp) {
     if (pc.connectionState==='failed'||pc.connectionState==='disconnected') closePeer(fromKey);
   };
 
-  // Listen for ICE candidates from this peer
+  // Listen for ICE candidates — buffer them until remoteDescription is set
   const candRef = callRef.child('candidates/'+mk+'/'+fromKey);
   const candUn = candRef.on('child_added', snap => {
-    if (snap.val() && peers[fromKey]) peers[fromKey].addIceCandidate(new RTCIceCandidate(snap.val())).catch(()=>{});
+    const c = snap.val(); if (!c || !peers[fromKey]) return;
+    const p = peers[fromKey];
+    if (p.remoteDescription) {
+      p.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    } else {
+      candBuffer[fromKey] = candBuffer[fromKey] || [];
+      candBuffer[fromKey].push(c);
+    }
   });
   peerUnsubs[fromKey].push(() => candRef.off('child_added', candUn));
 
   await pc.setRemoteDescription(new RTCSessionDescription({ type:'offer', sdp }));
+
+  // Flush any buffered candidates now that remoteDescription is set
+  (candBuffer[fromKey] || []).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
+  candBuffer[fromKey] = [];
+
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
   await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp: answer.sdp }).catch(()=>{});
@@ -983,7 +1113,12 @@ async function handleOffer(fromKey, sdp) {
 async function handleAnswer(fromKey, sdp) {
   const pc = peers[fromKey];
   if (!pc || pc.remoteDescription) return;
-  try { await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp })); } catch(e){}
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp }));
+    // Flush any ICE candidates that arrived before the answer
+    (candBuffer[fromKey] || []).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
+    candBuffer[fromKey] = [];
+  } catch(e) {}
   updateCallBar();
 }
 
@@ -994,6 +1129,7 @@ async function createOfferTo(peerKey) {
   const pc = new RTCPeerConnection(ICE);
   peers[peerKey] = pc;
   peerUnsubs[peerKey] = [];
+  candBuffer[peerKey] = [];
 
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
   pc.ontrack = e => playRemoteForPeer(peerKey, e.streams[0]);
@@ -1004,10 +1140,17 @@ async function createOfferTo(peerKey) {
     if (pc.connectionState==='failed'||pc.connectionState==='disconnected') closePeer(peerKey);
   };
 
-  // Listen for ICE candidates from this peer
+  // Listen for ICE candidates — buffer them until handleAnswer sets remoteDescription
   const candRef = callRef.child('candidates/'+mk+'/'+peerKey);
   const candUn = candRef.on('child_added', snap => {
-    if (snap.val() && peers[peerKey]) peers[peerKey].addIceCandidate(new RTCIceCandidate(snap.val())).catch(()=>{});
+    const c = snap.val(); if (!c || !peers[peerKey]) return;
+    const p = peers[peerKey];
+    if (p.remoteDescription) {
+      p.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    } else {
+      candBuffer[peerKey] = candBuffer[peerKey] || [];
+      candBuffer[peerKey].push(c);
+    }
   });
   peerUnsubs[peerKey].push(() => candRef.off('child_added', candUn));
 
@@ -1019,7 +1162,7 @@ async function createOfferTo(peerKey) {
 function closePeer(peerKey) {
   if (peerUnsubs[peerKey]) { peerUnsubs[peerKey].forEach(fn=>{try{fn();}catch(e){}}); delete peerUnsubs[peerKey]; }
   if (peers[peerKey]) { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
-  // Remove their audio element
+  delete candBuffer[peerKey];
   const el = document.getElementById('audio-'+peerKey);
   if (el) el.remove();
 }
@@ -1036,7 +1179,7 @@ function teardownCall() {
   }
   // Close all peer connections
   Object.keys(peers).forEach(k => closePeer(k));
-  peers = {}; peerUnsubs = {};
+  peers = {}; peerUnsubs = {}; candBuffer = {};
   // Detach call-level Firebase listeners
   callUnsub.forEach(fn => { try{fn();}catch(e){} });
   callUnsub = [];
