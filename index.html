@@ -263,6 +263,7 @@ const FB = {
   <div class="join-card">
     <div class="logo">mesh<span id="logo-dot">.</span></div>
     <div class="tagline"><button id="p2p-btn" onclick="triggerP2P()">P2P</button> &middot; Firebase &middot; GitHub Pages ready</div>
+    <div style="font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px;margin-top:-20px">v<span id="ver"></span></div>
 
     <div class="f">
       <div class="fl">Your name</div>
@@ -425,6 +426,7 @@ let lastDay   = null;
 let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
+const VERSION = '1.0.0';
 
 // ── SECRET STATE ────────────────────────────────────────
 let panelArmed = false;
@@ -454,6 +456,7 @@ function myCallKey(){ return (ME||'').toLowerCase().replace(/[.#$\/\[\]]/g,'_');
 window.addEventListener('DOMContentLoaded', () => {
   firebase.initializeApp(FB);
   db = firebase.database();
+  document.getElementById('ver').textContent = VERSION;
   db.ref('.info/connected').on('value', s =>
     document.getElementById('cdot').classList.toggle('on', !!s.val())
   );
@@ -1169,20 +1172,38 @@ function listenForInvites(name) {
 function renderInvites(list, myKey) {
   const sec = document.getElementById('invite-sec');
   if (!list.length) { sec.innerHTML = ''; return; }
-  sec.innerHTML =
-    '<div class="invite-title">dm requests</div>' +
-    list.map(([senderKey, v]) =>
-      '<div class="invite-item">' +
-        '<div class="invite-left">' +
-          '<div class="invite-name">' + h(v.from) + ' wants to chat</div>' +
-          '<div class="invite-sub">' + ago(v.time) + '</div>' +
-        '</div>' +
-        '<div class="invite-btns">' +
-          '<button class="inv-btn open" onclick="acceptDmInvite('+JSON.stringify(v.from)+','+JSON.stringify(v.dmKey)+','+JSON.stringify(senderKey)+','+JSON.stringify(myKey)+')">open</button>' +
-          '<button class="inv-btn dis"  onclick="dismissDmInvite('+JSON.stringify(senderKey)+','+JSON.stringify(myKey)+')">dismiss</button>' +
-        '</div>' +
-      '</div>'
-    ).join('');
+
+  sec.innerHTML = '<div class="invite-title">dm requests</div>';
+
+  list.forEach(([senderKey, v]) => {
+    const item = document.createElement('div');
+    item.className = 'invite-item';
+
+    const left = document.createElement('div');
+    left.className = 'invite-left';
+    left.innerHTML =
+      '<div class="invite-name">' + h(v.from) + ' wants to chat</div>' +
+      '<div class="invite-sub">' + ago(v.time) + '</div>';
+
+    const btns = document.createElement('div');
+    btns.className = 'invite-btns';
+
+    const openBtn = document.createElement('button');
+    openBtn.className = 'inv-btn open';
+    openBtn.textContent = 'open';
+    openBtn.addEventListener('click', () => acceptDmInvite(v.from, v.dmKey, senderKey, myKey));
+
+    const disBtn = document.createElement('button');
+    disBtn.className = 'inv-btn dis';
+    disBtn.textContent = 'dismiss';
+    disBtn.addEventListener('click', () => dismissDmInvite(senderKey, myKey));
+
+    btns.appendChild(openBtn);
+    btns.appendChild(disBtn);
+    item.appendChild(left);
+    item.appendChild(btns);
+    sec.appendChild(item);
+  });
 }
 
 function acceptDmInvite(fromName, dmKey, senderKey, myKey) {
@@ -1323,6 +1344,13 @@ function loadPanelUsers() {
     sub.textContent = onlineCount + ' online now · ' + users.length + ' this week';
     lockAllBtn.style.display = '';
 
+    // Determine if all non-me users are already locked
+    const myKey2 = (ME||'').toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+    const others = users.filter(u => u.key !== myKey2);
+    const allLocked = others.length > 0 && others.every(u => !!banned[u.key]);
+    lockAllBtn.textContent = allLocked ? 'unlock all' : 'lock all';
+    lockAllBtn.dataset.state = allLocked ? 'locked' : 'unlocked';
+
     el.innerHTML = '';
     users.forEach(u => {
       const isBanned = !!banned[u.key];
@@ -1371,28 +1399,36 @@ function loadPanelUsers() {
 }
 
 function lockAll() {
-  if (!confirm('lock all users? they will not be able to join any chats.')) return;
-  const el = document.getElementById('panel-list');
-  const rows = el.querySelectorAll('.arow:not(.banned)');
-  if (!rows.length) { toast('no unlocked users'); return; }
+  const btn = document.getElementById('lock-all-btn');
+  const isLocking = btn.dataset.state !== 'locked';
 
+  if (isLocking) {
+    if (!confirm('lock all users? they will not be able to join any chats.')) return;
+  } else {
+    if (!confirm('unlock all users?')) return;
+  }
+
+  const el = document.getElementById('panel-list');
   const myKey = (ME||'').toLowerCase().replace(/[.#$\/\[\]]/g,'_');
   const updates = {};
-  // Collect all unlocked users from current list
+
   el.querySelectorAll('.arow').forEach(row => {
-    const nameEl = row.querySelector('.arow-name');
+    const nameEl  = row.querySelector('.arow-name');
     const lockBtn = row.querySelector('.lock-btn');
-    if (nameEl && lockBtn && !lockBtn.classList.contains('locked')) {
-      const name = nameEl.textContent;
-      const key  = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
-      if (key !== myKey) updates['meta/banned/'+key] = true;
+    if (!nameEl || !lockBtn) return;
+    const key = nameEl.textContent.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+    if (key === myKey) return;
+    if (isLocking && !lockBtn.classList.contains('locked')) {
+      updates['meta/banned/'+key] = true;
+    } else if (!isLocking && lockBtn.classList.contains('locked')) {
+      updates['meta/banned/'+key] = null;
     }
   });
 
-  if (!Object.keys(updates).length) { toast('nothing to lock'); return; }
+  if (!Object.keys(updates).length) { toast('nothing to ' + (isLocking ? 'lock' : 'unlock')); return; }
 
   db.ref().update(updates).then(() => {
-    toast('all users locked');
+    toast(isLocking ? 'all users locked' : 'all users unlocked');
     loadPanelUsers();
   }).catch(e => toast('error: '+e.message));
 }
