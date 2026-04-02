@@ -28,6 +28,8 @@
     @keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
 
     .logo{font-family:var(--sans);font-size:2.4rem;font-weight:800;letter-spacing:-1px;color:var(--accent);margin-bottom:4px}
+    #logo-dot{cursor:pointer;display:inline-block;padding:0 3px;margin-left:-3px;border-radius:3px;transition:background .15s}
+    #logo-dot:hover{background:rgba(0,229,160,.12)}
     .tagline{font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:28px}
     .tagline button{background:none;border:none;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--border);padding:0}
 
@@ -98,6 +100,13 @@
     .msg.them.dm .mbub{background:#1a1730;border-color:rgba(124,106,255,.15);color:var(--text)}
     .mimg{max-width:220px;max-height:220px;border-radius:10px;display:block;cursor:pointer;border:1px solid var(--border)}
     .msg.me .mimg{border-color:rgba(0,229,160,.2)}
+
+    /* clickable links inside bubbles */
+    .mbub a{color:var(--accent);text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(0,229,160,.4);word-break:break-all;transition:opacity .15s}
+    .mbub a:hover{opacity:.75}
+    .msg.me.dm .mbub a{color:#b8aaff;text-decoration-color:rgba(184,170,255,.35)}
+    .msg.them   .mbub a{color:var(--accent)}
+    .msg.them.dm .mbub a{color:#b8aaff}
 
     /* delete btn */
     .mdel{display:none;position:absolute;background:var(--danger);color:#fff;border:none;border-radius:20px;font-size:10px;font-family:var(--mono);padding:3px 10px;cursor:pointer;white-space:nowrap;z-index:10;top:-22px}
@@ -170,6 +179,48 @@
     .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surf);border:1px solid var(--border);color:var(--accent);font-size:12px;padding:8px 16px;border-radius:20px;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;z-index:700}
     .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
+    /* admin panel */
+    .admin-list{width:100%;display:flex;flex-direction:column;gap:8px;max-height:55vh;overflow-y:auto;padding-right:2px}
+    .admin-list::-webkit-scrollbar{width:3px}
+    .admin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .arow{display:flex;align-items:center;justify-content:space-between;background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;gap:10px;transition:border-color .2s}
+    .arow.banned{border-color:rgba(255,77,109,.25);background:rgba(255,77,109,.04)}
+    .arow-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .arow-name{font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .arow-name.banned{color:var(--danger)}
+    .arow-time{font-size:10px;color:var(--dim)}
+    .lock-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;background:transparent;color:var(--muted);transition:all .15s;white-space:nowrap}
+    .lock-btn:hover{border-color:var(--danger);color:var(--danger)}
+    .lock-btn.locked{border-color:var(--danger);color:var(--danger)}
+    .lock-btn.locked:hover{background:rgba(255,77,109,.12)}
+    .admin-empty{font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:10px 0}
+    .admin-loading{font-size:11px;color:var(--dim);text-align:center;padding:10px 0}
+
+    /* audio call */
+    #call-banner{display:none;padding:11px 20px;background:rgba(124,106,255,.1);border-bottom:1px solid rgba(124,106,255,.22);flex-shrink:0;align-items:center;justify-content:space-between;gap:12px;animation:up .2s ease both}
+    #call-banner.on{display:flex}
+    .cb-info{display:flex;flex-direction:column;gap:2px}
+    .cb-name{font-size:13px;color:var(--dm);font-weight:600}
+    .cb-sub{font-size:10px;color:var(--dim);letter-spacing:.06em}
+    .cb-btns{display:flex;gap:8px;flex-shrink:0}
+    .cxbtn{font-family:var(--mono);font-size:11px;font-weight:700;padding:6px 14px;border-radius:20px;border:none;cursor:pointer;transition:opacity .15s,transform .12s}
+    .cxbtn:hover{opacity:.82;transform:scale(1.04)}
+    .cxbtn:active{transform:scale(.96)}
+    .cxbtn.acc{background:var(--accent);color:#000}
+    .cxbtn.dec{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
+
+    #call-bar{display:none;padding:9px 20px;background:rgba(0,229,160,.05);border-bottom:1px solid rgba(0,229,160,.12);flex-shrink:0;align-items:center;gap:10px}
+    #call-bar.on{display:flex}
+    .cb-pulse{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:blink 1.4s infinite}
+    #cb-label{font-size:12px;color:var(--accent);flex:1;letter-spacing:.04em}
+    #cb-timer{font-size:11px;color:var(--dim);min-width:36px;text-align:right}
+    .cxbtn.sm{padding:5px 11px;font-size:10px}
+    .cxbtn.muted{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
+    .cxbtn.end{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
+
+    #call-btn{display:none}
+    #call-btn.dm-active{display:flex}
+
     @media(max-width:500px){
       .msg{max-width:88%}
       .hdr,.ftr{padding:11px 14px}
@@ -194,11 +245,11 @@ const FB = {
 <!-- JOIN -->
 <div id="join-screen" class="screen active">
   <div class="join-card">
-    <div class="logo">mesh.</div>
-    <div class="tagline"><button onclick="openKP()">P2P</button> &middot; Firebase &middot; GitHub Pages ready</div>
+    <div class="logo">mesh<span id="logo-dot">.</span></div>
+    <div class="tagline"><button id="p2p-btn" onclick="triggerP2P()">P2P</button> &middot; Firebase &middot; GitHub Pages ready</div>
 
     <div class="f">
-      <div class="fl">Your name <span class="locked-badge" id="lbadge" style="display:none">locked</span></div>
+      <div class="fl">Your name</div>
       <input type="text" id="uname" placeholder="e.g. alex" maxlength="24" autocomplete="off" spellcheck="false"/>
     </div>
 
@@ -246,6 +297,30 @@ const FB = {
     </div>
   </div>
   <div class="ebar" id="ebar"></div>
+
+  <!-- incoming call banner -->
+  <div id="call-banner">
+    <div class="cb-info">
+      <div class="cb-name" id="cb-caller-name"></div>
+      <div class="cb-sub">incoming voice call</div>
+    </div>
+    <div class="cb-btns">
+      <button class="cxbtn acc" onclick="acceptCall()">accept</button>
+      <button class="cxbtn dec" onclick="declineCall()">decline</button>
+    </div>
+  </div>
+
+  <!-- active call bar -->
+  <div id="call-bar">
+    <div class="cb-pulse"></div>
+    <span id="cb-label">connecting...</span>
+    <span id="cb-timer"></span>
+    <button class="cxbtn sm" id="mute-btn" onclick="toggleMute()">mute</button>
+    <button class="cxbtn sm end" onclick="hangup()">end</button>
+  </div>
+
+  <!-- hidden audio for remote stream -->
+  <audio id="remote-audio" autoplay playsinline style="display:none"></audio>
   <div id="msgs"></div>
   <div class="iprev" id="iprev">
     <img id="ithumb" src="" alt=""/>
@@ -255,6 +330,11 @@ const FB = {
   <div class="ftr">
     <div class="irow">
       <input type="text" id="mi" placeholder="type a message&hellip;" maxlength="500" autocomplete="off" spellcheck="false"/>
+      <button class="ibtn" id="call-btn" onclick="startCall()" title="voice call">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.22 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+        </svg>
+      </button>
       <button class="ibtn" onclick="document.getElementById('img-pick').click()" title="send image">
         <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
@@ -304,6 +384,16 @@ const FB = {
 <!-- LIGHTBOX -->
 <div class="lb" id="lb" onclick="closeLB()"><img id="lb-img" src="" alt=""/></div>
 
+<!-- ADMIN PANEL -->
+<div class="mbg" id="admin-modal">
+  <div class="modal" style="width:340px">
+    <div class="modal-t">admin panel</div>
+    <div class="modal-s">users active in the last 7 days</div>
+    <div class="admin-list" id="admin-list"><div class="admin-loading">loading...</div></div>
+    <div class="mcancel" onclick="closeAdmin()">close</div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -318,6 +408,24 @@ let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
 
+// ── ADMIN SECRET STATE ────────────────────────────────────────
+let adminArmed = false;
+let dotClicks  = 0;
+let dotTimer   = null;
+let BANNED     = {}; // local cache of banned users, keyed by sanitised username
+
+// ── CALL STATE ────────────────────────────────────────────────
+let DM_PEER    = '';       // other person's display name in current DM
+let pc         = null;     // RTCPeerConnection
+let localStream= null;
+let callRef    = null;     // Firebase ref for call signaling
+let callUnsub  = [];       // Firebase listeners to detach on cleanup
+let callSecs   = 0;
+let callTick   = null;
+let isMuted    = false;
+let amCaller   = false;
+const ICE = { iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}] };
+
 // ── INIT ───────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   firebase.initializeApp(FB);
@@ -326,12 +434,13 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cdot').classList.toggle('on', !!s.val())
   );
 
+  // Keep banned list in sync locally — silent, fails gracefully
+  db.ref('meta/banned').on('value', snap => { BANNED = snap.val() || {}; }, () => { BANNED = {}; });
+
   // Load saved username
   const saved = localStorage.getItem('mesh_user');
   if (saved) {
-    const u = document.getElementById('uname');
-    u.value = saved; u.disabled = true;
-    document.getElementById('lbadge').style.display = '';
+    document.getElementById('uname').value = saved;
   }
 
   renderRecent();
@@ -352,6 +461,8 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
+
+  initDotSecret();
 });
 
 function tryAuto() {
@@ -375,6 +486,8 @@ function joinRoom() {
   const room = document.getElementById('room-in').value.trim().toLowerCase().replace(/\s+/g,'-');
   if (!name) { shake('uname');   toast('enter your name first'); return; }
   if (!room) { shake('room-in'); toast('enter a room name');     return; }
+  const bkey = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+  if (BANNED[bkey] === true) { shake('uname'); toast('this account has been restricted'); return; }
   lockUser(name);
   startChat('rooms/'+room, '#'+room, false, room, room);
 }
@@ -386,18 +499,21 @@ function joinDM() {
   if (!name) { shake('uname'); toast('enter your name first');  return; }
   if (!them) { shake('dm-in'); toast('enter their username');   return; }
   if (them === name.toLowerCase()) { shake('dm-in'); toast("you can't DM yourself"); return; }
+  const bkey = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+  if (BANNED[bkey] === true) { shake('uname'); toast('this account has been restricted'); return; }
   lockUser(name);
+  DM_PEER = them;
   const key = [name.toLowerCase(), them].sort().join('__');
   startChat('dms/'+key, '@'+them, true, key, them);
 }
 
 function lockUser(name) {
   ME = name;
-  const u = document.getElementById('uname');
-  if (!u.disabled) {
-    u.disabled = true;
-    document.getElementById('lbadge').style.display = '';
-    localStorage.setItem('mesh_user', name);
+  localStorage.setItem('mesh_user', name);
+  // Track user presence for admin panel
+  if (db) {
+    const key = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
+    db.ref('meta/users/'+key).set({ name: name, lastSeen: firebase.database.ServerValue.TIMESTAMP });
   }
 }
 
@@ -426,6 +542,8 @@ function startChat(path, label, dm, recKey, recDisplay) {
   document.getElementById('hdr-meta').textContent = 'you — '+ME;
   document.getElementById('mi').className = dm ? 'dm' : '';
   document.getElementById('sbtn').className = 'sbtn'+(dm?' dm':'');
+  // show call button only in DMs
+  document.getElementById('call-btn').className = 'ibtn' + (dm ? ' dm-active' : '');
 
   // URL
   try {
@@ -457,6 +575,24 @@ function startChat(path, label, dm, recKey, recDisplay) {
   });
 
   setTimeout(() => document.getElementById('mi').focus(), 100);
+
+  // ── set up incoming call listener for DMs ──
+  if (dm) {
+    teardownCall(false); // clean up any previous call state
+    callRef = db.ref('calls/' + recKey);
+    const incomingUnsub = callRef.on('value', snap => {
+      const data = snap.val();
+      if (!data) { hideBanner(); return; }
+      // Only show banner if there's a ringing call from someone else
+      if (data.status === 'ringing' && data.caller && data.caller.toLowerCase() !== ME.toLowerCase()) {
+        document.getElementById('cb-caller-name').textContent = data.caller;
+        document.getElementById('call-banner').classList.add('on');
+      } else if (!data.status || data.status === 'ended') {
+        hideBanner();
+      }
+    });
+    callUnsub.push(() => callRef.off('value', incomingUnsub));
+  }
 }
 
 // ── SEND ──────────────────────────────────────────────────────
@@ -515,6 +651,49 @@ function sendImg() {
     .catch(e => showErr('image send failed: '+e.message));
 }
 
+// ── PROFANITY FILTER ──────────────────────────────────────────
+// Replaces each character of a matched bad word with #
+const BAD_WORDS = [
+  'fuck','fucker','fucking','motherfucker','motherfucking',
+  'shit','bullshit','horseshit',
+  'cunt','bitch','bastard','asshole','prick','cock','dick',
+  'pussy','whore','slut','twat','wank','wanker','bollocks',
+  'faggot','nigger','nigga','kike','spic','chink',
+  'retard','retarded'
+];
+function censor(text) {
+  let out = text;
+  BAD_WORDS.forEach(w => {
+    const re = new RegExp('\\b' + w + 's?\\b', 'gi');
+    out = out.replace(re, m => '#'.repeat(m.length));
+  });
+  return out;
+}
+
+// ── LINKIFY ───────────────────────────────────────────────────
+// Splits text into plain segments and URL segments, escapes plain text,
+// and wraps URLs in safe <a> tags that open in a new tab.
+function linkify(text) {
+  const URL_RE = /https?:\/\/[^\s<>"']+/g;
+  let result = '';
+  let last = 0;
+  let m;
+  while ((m = URL_RE.exec(text)) !== null) {
+    // Escape and append the plain text before this URL
+    result += h(text.slice(last, m.index));
+    // Safely encode the URL for use in href and display
+    const url = m[0];
+    const safeHref = url.replace(/"/g, '%22');
+    // Truncate long URLs for display only
+    const display = url.length > 50 ? url.slice(0, 47) + '...' : url;
+    result += '<a href="' + safeHref + '" target="_blank" rel="noopener noreferrer">' + h(display) + '</a>';
+    last = m.index + url.length;
+  }
+  // Append any remaining plain text
+  result += h(text.slice(last));
+  return result;
+}
+
 // ── RENDER MESSAGE ────────────────────────────────────────────
 function addMsg(data, notify) {
   if (!data || (!data.text && !data.dataUrl)) return;
@@ -562,8 +741,9 @@ function addMsg(data, notify) {
     wrap.appendChild(img);
   } else {
     const bub = document.createElement('div');
-    bub.className   = 'mbub';
-    bub.textContent = data.text;
+    bub.className = 'mbub';
+    // Use linkify() so URLs become clickable anchors; all other text is XSS-safe
+    bub.innerHTML = linkify(censor(data.text));
     wrap.appendChild(bub);
   }
 
@@ -609,6 +789,7 @@ function delMsg(key, el) {
 
 // ── LEAVE ─────────────────────────────────────────────────────
 function leaveRoom() {
+  teardownCall(true);
   if (ref && unsub) try { ref.off('child_added', unsub); } catch(e){}
   ref=null; unsub=null; rendered.clear(); lastDay=null; editing=false;
   document.getElementById('msgs').innerHTML='';
@@ -626,6 +807,177 @@ function leaveRoom() {
 
 function copyLink() {
   try { navigator.clipboard.writeText(location.href).then(()=>toast('link copied')); } catch(e){}
+}
+
+// ── WEBRTC AUDIO CALL ─────────────────────────────────────────
+async function startCall() {
+  if (!IS_DM) return;
+  if (pc) { toast('already in a call'); return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch(e) {
+    toast('microphone access denied'); return;
+  }
+  amCaller = true;
+  pc = new RTCPeerConnection(ICE);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  pc.ontrack = e => { playRemote(e.streams[0]); };
+  pc.onconnectionstatechange = () => {
+    if (pc && (pc.connectionState === 'connected')) { startCallTimer(); updateCallBar('with ' + DM_PEER); }
+    if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) hangup();
+  };
+
+  // Write ICE candidates as they come
+  pc.onicecandidate = e => {
+    if (e.candidate && callRef) callRef.child('callerCandidates').push(e.candidate.toJSON());
+  };
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  // Write offer to Firebase — this signals the other side
+  await callRef.set({ caller: ME, status: 'ringing', offer: { type: offer.type, sdp: offer.sdp } });
+
+  // Listen for answer
+  const ansUnsub = callRef.child('answer').on('value', async snap => {
+    if (!snap.val() || !pc || pc.remoteDescription) return;
+    try { await pc.setRemoteDescription(new RTCSessionDescription(snap.val())); } catch(e){}
+  });
+  callUnsub.push(() => callRef.child('answer').off('value', ansUnsub));
+
+  // Listen for callee ICE candidates
+  const ceeUnsub = callRef.child('calleeCandidates').on('child_added', async snap => {
+    if (!snap.val() || !pc) return;
+    try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch(e){}
+  });
+  callUnsub.push(() => callRef.child('calleeCandidates').off('child_added', ceeUnsub));
+
+  // Watch for hangup from other side
+  const statusUnsub = callRef.child('status').on('value', snap => {
+    if (snap.val() === 'ended') hangup();
+  });
+  callUnsub.push(() => callRef.child('status').off('value', statusUnsub));
+
+  showCallBar('calling ' + DM_PEER + '...');
+
+  // No answer timeout — 30 seconds
+  setTimeout(() => { if (pc && pc.connectionState !== 'connected') { hangup(); toast('no answer'); } }, 30000);
+}
+
+async function acceptCall() {
+  hideBanner();
+  const snap = await callRef.once('value');
+  const data  = snap.val();
+  if (!data || !data.offer) { toast('call expired'); return; }
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch(e) {
+    toast('microphone access denied'); return;
+  }
+  amCaller = false;
+  pc = new RTCPeerConnection(ICE);
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+  pc.ontrack = e => { playRemote(e.streams[0]); };
+  pc.onconnectionstatechange = () => {
+    if (pc && pc.connectionState === 'connected') { startCallTimer(); updateCallBar('with ' + data.caller); }
+    if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) hangup();
+  };
+
+  // Write our ICE candidates
+  pc.onicecandidate = e => {
+    if (e.candidate && callRef) callRef.child('calleeCandidates').push(e.candidate.toJSON());
+  };
+
+  await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await callRef.child('answer').set({ type: answer.type, sdp: answer.sdp });
+  await callRef.child('status').set('connected');
+
+  // Listen for caller ICE candidates
+  const crrUnsub = callRef.child('callerCandidates').on('child_added', async snap => {
+    if (!snap.val() || !pc) return;
+    try { await pc.addIceCandidate(new RTCIceCandidate(snap.val())); } catch(e){}
+  });
+  callUnsub.push(() => callRef.child('callerCandidates').off('child_added', crrUnsub));
+
+  // Watch for hangup from caller
+  const statusUnsub = callRef.child('status').on('value', snap => {
+    if (snap.val() === 'ended') hangup();
+  });
+  callUnsub.push(() => callRef.child('status').off('value', statusUnsub));
+
+  showCallBar('connecting...');
+}
+
+function declineCall() {
+  hideBanner();
+  if (callRef) callRef.child('status').set('ended');
+}
+
+function hangup() {
+  if (callRef && amCaller) callRef.child('status').set('ended').catch(()=>{});
+  teardownCall(false);
+}
+
+function teardownCall(writeEnded) {
+  if (writeEnded && callRef && amCaller) { try { callRef.child('status').set('ended'); } catch(e){} }
+  // Detach all call-related Firebase listeners
+  callUnsub.forEach(fn => { try { fn(); } catch(e){} });
+  callUnsub = [];
+  // Close peer connection
+  if (pc) { try { pc.close(); } catch(e){} pc = null; }
+  // Stop local mic
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  // Stop remote audio
+  const ra = document.getElementById('remote-audio');
+  ra.srcObject = null;
+  // Clear call timer
+  clearInterval(callTick); callTick = null; callSecs = 0;
+  isMuted = false; amCaller = false;
+  hideCallBar(); hideBanner();
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+  const btn = document.getElementById('mute-btn');
+  btn.textContent = isMuted ? 'unmute' : 'mute';
+  btn.className   = 'cxbtn sm' + (isMuted ? ' muted' : '');
+}
+
+function playRemote(stream) {
+  const a = document.getElementById('remote-audio');
+  a.srcObject = stream;
+  a.play().catch(()=>{});
+}
+
+function showCallBar(label) {
+  document.getElementById('cb-label').textContent = label;
+  document.getElementById('cb-timer').textContent = '';
+  document.getElementById('call-bar').classList.add('on');
+  document.getElementById('mute-btn').textContent = 'mute';
+  document.getElementById('mute-btn').className   = 'cxbtn sm';
+}
+function updateCallBar(label) {
+  document.getElementById('cb-label').textContent = label;
+}
+function hideCallBar() {
+  document.getElementById('call-bar').classList.remove('on');
+}
+function hideBanner() {
+  document.getElementById('call-banner').classList.remove('on');
+}
+function startCallTimer() {
+  clearInterval(callTick);
+  callSecs = 0;
+  callTick = setInterval(() => {
+    callSecs++;
+    const m = Math.floor(callSecs / 60);
+    const s = String(callSecs % 60).padStart(2, '0');
+    document.getElementById('cb-timer').textContent = m + ':' + s;
+  }, 1000);
 }
 
 // ── RECENT CHATS ──────────────────────────────────────────────
@@ -658,7 +1010,7 @@ function renderRecent() {
 
 function quickJoin(name, dm) {
   const u = document.getElementById('uname');
-  if (!u.disabled && !u.value.trim()) { toast('enter your name first'); u.focus(); return; }
+  if (!u.value.trim()) { toast('enter your name first'); u.focus(); return; }
   if (dm) { switchTab('dm'); document.getElementById('dm-in').value=name; joinDM(); }
   else    { switchTab('room'); document.getElementById('room-in').value=name; joinRoom(); }
 }
@@ -669,6 +1021,43 @@ function ago(ts) {
   if (s<3600)  return Math.floor(s/60)+'m ago';
   if (s<86400) return Math.floor(s/3600)+'h ago';
   return Math.floor(s/86400)+'d ago';
+}
+
+// ── SECRET SEQUENCE ───────────────────────────────────────────
+function initDotSecret() {
+  document.getElementById('logo-dot').addEventListener('click', () => {
+    dotClicks++;
+    clearTimeout(dotTimer);
+    dotTimer = setTimeout(() => { dotClicks = 0; }, 700);
+    if (dotClicks >= 3) {
+      dotClicks = 0;
+      adminArmed = true;
+      // flash the P2P button so the user knows to click it
+      const btn = document.getElementById('p2p-btn');
+      btn.style.color = 'var(--accent)';
+      btn.style.textDecorationColor = 'var(--accent)';
+      const disarm = setTimeout(() => {
+        adminArmed = false;
+        btn.style.color = '';
+        btn.style.textDecorationColor = '';
+      }, 3000);
+      // store disarm so triggerP2P can clear it
+      btn._disarm = disarm;
+    }
+  });
+}
+
+function triggerP2P() {
+  if (adminArmed) {
+    adminArmed = false;
+    const btn = document.getElementById('p2p-btn');
+    clearTimeout(btn._disarm);
+    btn.style.color = '';
+    btn.style.textDecorationColor = '';
+    openAdmin();
+    return;
+  }
+  openKP();
 }
 
 // ── KEYPAD ────────────────────────────────────────────────────
@@ -691,8 +1080,7 @@ function saveName() {
   const v = document.getElementById('nm-in').value.trim();
   if (!v) { shake('nm-in'); return; }
   ME=v; localStorage.setItem('mesh_user',v);
-  const u=document.getElementById('uname'); u.value=v; u.disabled=true;
-  document.getElementById('lbadge').style.display='';
+  document.getElementById('uname').value = v;
   closeNM(); toast('username saved: '+v);
 }
 
@@ -700,9 +1088,70 @@ function saveName() {
 function openLB(src) { document.getElementById('lb-img').src=src; document.getElementById('lb').classList.add('on'); }
 function closeLB()   { document.getElementById('lb').classList.remove('on'); }
 
+// ── ADMIN PANEL ───────────────────────────────────────────────
+function openAdmin() {
+  document.getElementById('admin-modal').classList.add('on');
+  loadAdminUsers();
+}
+function closeAdmin() {
+  document.getElementById('admin-modal').classList.remove('on');
+}
+
+function loadAdminUsers() {
+  const el = document.getElementById('admin-list');
+  el.innerHTML = '<div class="admin-loading">loading...</div>';
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  Promise.all([
+    db.ref('meta/users').orderByChild('lastSeen').startAt(weekAgo).once('value'),
+    db.ref('meta/banned').once('value')
+  ]).then(([usersSnap, bannedSnap]) => {
+    const banned = bannedSnap.val() || {};
+    const users  = [];
+    usersSnap.forEach(c => users.push({ key: c.key, ...c.val() }));
+    if (!users.length) {
+      el.innerHTML = '<div class="admin-empty">no users in the last 7 days</div>';
+      return;
+    }
+    users.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+    el.innerHTML = '';
+    users.forEach(u => {
+      const isBanned = !!banned[u.key];
+      const row  = document.createElement('div');
+      row.className = 'arow' + (isBanned ? ' banned' : '');
+      const info = document.createElement('div');
+      info.className = 'arow-info';
+      info.innerHTML =
+        '<div class="arow-name'+(isBanned?' banned':'')+'">'+h(u.name)+'</div>'+
+        '<div class="arow-time">'+ago(u.lastSeen)+'</div>';
+      const btn = document.createElement('button');
+      btn.className = 'lock-btn' + (isBanned ? ' locked' : '');
+      btn.textContent = isBanned ? 'unlock' : 'lock';
+      btn.onclick = () => toggleBan(u.key, u.name, isBanned, btn, row, info);
+      row.appendChild(info);
+      row.appendChild(btn);
+      el.appendChild(row);
+    });
+  }).catch(e => {
+    el.innerHTML = '<div class="admin-empty" style="color:var(--danger)">error: '+h(e.message)+'</div>';
+  });
+}
+
+function toggleBan(key, name, currentlyBanned, btn, row, info) {
+  const newBanned = !currentlyBanned;
+  db.ref('meta/banned/'+key).set(newBanned ? true : null)
+    .then(() => {
+      btn.textContent  = newBanned ? 'unlock' : 'lock';
+      btn.className    = 'lock-btn' + (newBanned ? ' locked' : '');
+      row.className    = 'arow' + (newBanned ? ' banned' : '');
+      info.querySelector('.arow-name').className = 'arow-name' + (newBanned ? ' banned' : '');
+      toast((newBanned ? 'locked: ' : 'unlocked: ') + name);
+    })
+    .catch(e => toast('error: ' + e.message));
+}
+
 // ── KEYBOARD ──────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); return; }
+  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); closeAdmin(); return; }
   if (e.key!=='Enter') return;
   if (document.getElementById('nm-modal').classList.contains('on'))    { saveName(); return; }
   if (document.getElementById('chat-screen').classList.contains('active')) { send(); return; }
