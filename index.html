@@ -541,7 +541,7 @@ let lastDay   = null;
 let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
-const VERSION = '1.4.2';
+const VERSION = '1.4.3';
 let unread = 0; // unread message counter for tab title
 
 // ── SECRET STATE ────────────────────────────────────────
@@ -551,20 +551,20 @@ let dotTimer   = null;
 let BANNED     = {}; // local cache of banned users, keyed by sanitised username
 let inviteUnsub = null; // Firebase listener for incoming DM invites
 
-// ── CALL STATE (mesh — works for DMs and group rooms) ─────────
-let peers       = {};   // { peerKey: RTCPeerConnection }
-let peerUnsubs  = {};   // { peerKey: [unsub fns] }
-let candBuffer  = {};   // { peerKey: [RTCIceCandidateInit] } — buffered until remoteDescription is set
-let localStream = null;
-let callRef     = null;
-let callUnsub   = [];
-let callSecs    = 0;
-let callTick    = null;
-let isMuted     = false;
-let isVideo     = false;  // true when current call has video
-let isCamOff    = false;  // camera disabled mid-call
-let DM_PEER     = '';   // kept for DM invite writing
-let callWatcherUnsub = null; // separate from callUnsub — just watches for active calls
+// ── CALL STATE ────────────────────────────────────────────────
+let peers        = {};
+let peerUnsubs   = {};
+let candBuffers  = {};
+let localStream  = null;
+let callRef      = null;
+let callUnsub    = [];
+let callSecs     = 0;
+let callTick     = null;
+let isMuted      = false;
+let isVideo      = false;
+let isCamOff     = false;
+let DM_PEER      = '';
+let callWatcherUnsub = null;
 const ICE = { iceServers:[
   {urls:'stun:stun.l.google.com:19302'},
   {urls:'stun:stun1.l.google.com:19302'}
@@ -1092,19 +1092,17 @@ function copyLink() {
   try { navigator.clipboard.writeText(location.href).then(()=>toast('link copied')); } catch(e){}
 }
 
-// ── WEBRTC MESH CALL ──────────────────────────────────────────
+// ── WEBRTC CALL ───────────────────────────────────────────────
 
 function openCallPicker() {
   if (localStream) { toast('already in a call'); return; }
   document.getElementById('call-picker').classList.add('on');
 }
-function closeCallPicker() {
-  document.getElementById('call-picker').classList.remove('on');
-}
+function closeCallPicker() { document.getElementById('call-picker').classList.remove('on'); }
 
 async function startCall(type) {
   closeCallPicker();
-  if (localStream) { toast('already in a call'); return; }
+  if (localStream) return;
   isVideo = (type === 'video');
 
   try {
@@ -1113,132 +1111,102 @@ async function startCall(type) {
       video: isVideo ? { facingMode:'user' } : false
     });
   } catch(e) {
-    toast('could not access ' + (isVideo ? 'camera/mic' : 'microphone'));
+    toast('could not access ' + (isVideo ? 'camera/mic' : 'mic'));
     isVideo = false; return;
   }
 
   hideBanner();
 
+  // CRITICAL: wipe stale signals + candidates from any previous call
+  // so old SDP/ICE data doesn't poison the new negotiation
+  await callRef.child('signals').remove().catch(()=>{});
+  await callRef.child('candidates').remove().catch(()=>{});
+
   if (isVideo) {
-    // Show video overlay with local self preview
-    const selfVid = document.getElementById('vcall-self-vid');
-    selfVid.srcObject = localStream;
-    selfVid.play().catch(()=>{});
+    const sv = document.getElementById('vcall-self-vid');
+    sv.srcObject = localStream;
+    sv.play().catch(()=>{});
     document.getElementById('vcall-self').style.display = '';
     document.getElementById('vcall-overlay').classList.add('on');
     updateGrid();
   } else {
-    // Audio only — just show thin bar, nothing full screen
     showCallBar('connecting...');
   }
 
   const mk = myCallKey();
+
+  // Register presence with onDisconnect cleanup
   const presRef = callRef.child('participants/'+mk);
   await presRef.set({ name:ME, video:isVideo, t:firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
   presRef.onDisconnect().remove();
   callUnsub.push(() => { try{ presRef.onDisconnect().cancel(); presRef.remove(); }catch(e){} });
 
-  // Listen for signals (offers + answers) addressed to me
+  // Listen for SDP signals addressed to me
   const sigRef = callRef.child('signals/'+mk);
   const sigUn = sigRef.on('child_added', async snap => {
-    const fromKey = snap.key, d = snap.val();
-    if (!d) return;
-    if (d.type === 'offer')  await handleOffer(fromKey, d.sdp);
-    if (d.type === 'answer') await handleAnswer(fromKey, d.sdp);
+    const fromKey = snap.key, msg = snap.val();
+    if (!msg) return;
+    if (msg.type === 'offer')  await onOffer(fromKey, msg.sdp);
+    if (msg.type === 'answer') await onAnswer(fromKey, msg.sdp);
   });
   callUnsub.push(() => sigRef.off('child_added', sigUn));
 
-  // Watch participants leaving
+  // Watch participant changes
   const partRef = callRef.child('participants');
   const remUn = partRef.on('child_removed', snap => {
-    if (snap.key !== mk) removePeer(snap.key);
+    if (snap.key !== mk) dropPeer(snap.key);
     updateCallStatus();
   });
   const addUn = partRef.on('child_added', () => updateCallStatus());
   callUnsub.push(() => { partRef.off('child_removed', remUn); partRef.off('child_added', addUn); });
 
-  // Send offers to anyone already in the call
+  // Send offers to everyone already in the call
   const snap = await callRef.child('participants').once('value');
   const toOffer = [];
   snap.forEach(c => { if (c.key !== mk) toOffer.push(c.key); });
-  for (const pk of toOffer) await createOffer(pk);
+  for (const pk of toOffer) await sendOffer(pk);
 
   startCallTimer();
   updateCallStatus();
 }
 
-// Create a peer connection and send an offer to peerKey
-async function createOffer(peerKey) {
-  if (peers[peerKey]) return;
-  const mk  = myCallKey();
-  const pc  = makePeer(peerKey, mk);
-  const off = await pc.createOffer();
-  await pc.setLocalDescription(off);
-  await callRef.child('signals/'+peerKey+'/'+mk).set({ type:'offer', sdp:off.sdp }).catch(()=>{});
-}
+// ── PEER CONNECTIONS ──────────────────────────────────────────
 
-// Someone sent us an offer — respond with an answer
-async function handleOffer(fromKey, sdp) {
-  if (peers[fromKey]) return;
+function makePeer(peerKey) {
   const mk = myCallKey();
-  const pc = makePeer(fromKey, mk);
-  await pc.setRemoteDescription(new RTCSessionDescription({ type:'offer', sdp }));
-  flushCandidates(fromKey, pc);
-  const ans = await pc.createAnswer();
-  await pc.setLocalDescription(ans);
-  await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp:ans.sdp }).catch(()=>{});
-  updateCallStatus();
-}
-
-// They answered our offer
-async function handleAnswer(fromKey, sdp) {
-  const pc = peers[fromKey];
-  if (!pc || pc.remoteDescription) return;
-  await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp })).catch(()=>{});
-  flushCandidates(fromKey, pc);
-  updateCallStatus();
-}
-
-// Create and wire up an RTCPeerConnection for peerKey
-function makePeer(peerKey, mk) {
   const pc = new RTCPeerConnection(ICE);
   peers[peerKey]      = pc;
   peerUnsubs[peerKey] = [];
-  candBuffer[peerKey] = [];
+  candBuffers[peerKey] = [];
 
-  // Add all local tracks
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-  // Receive remote tracks — create separate audio + video elements
-  pc.ontrack = e => {
-    const stream = e.streams[0] || new MediaStream([e.track]);
-    if (e.track.kind === 'audio') {
-      playAudioForPeer(peerKey, stream);
-    } else if (e.track.kind === 'video') {
-      playVideoForPeer(peerKey, stream);
+  pc.ontrack = evt => {
+    if (evt.track.kind === 'audio') {
+      setAudioEl(peerKey, evt.streams[0] || new MediaStream([evt.track]));
+    } else if (evt.track.kind === 'video' && isVideo) {
+      setVideoTile(peerKey, evt.streams[0] || new MediaStream([evt.track]));
     }
   };
 
-  // Send ICE candidates
-  pc.onicecandidate = e => {
-    if (e.candidate)
-      callRef.child('candidates/'+peerKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
+  pc.onicecandidate = evt => {
+    if (evt.candidate)
+      callRef.child('candidates/'+peerKey+'/'+mk).push(evt.candidate.toJSON()).catch(()=>{});
   };
 
-  // Watch for connection failure
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')
-      removePeer(peerKey);
+    if (['failed','disconnected','closed'].includes(pc.connectionState))
+      dropPeer(peerKey);
   };
 
-  // Listen for ICE candidates from this peer — buffer if remoteDescription not set yet
+  // Buffer ICE candidates until remoteDescription is set
   const candRef = callRef.child('candidates/'+mk+'/'+peerKey);
-  const candUn  = candRef.on('child_added', snap => {
+  const candUn = candRef.on('child_added', snap => {
     const c = snap.val(); if (!c) return;
     if (pc.remoteDescription) {
       pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
     } else {
-      candBuffer[peerKey].push(c);
+      candBuffers[peerKey].push(c);
     }
   });
   peerUnsubs[peerKey].push(() => candRef.off('child_added', candUn));
@@ -1246,16 +1214,58 @@ function makePeer(peerKey, mk) {
   return pc;
 }
 
-function flushCandidates(peerKey, pc) {
-  (candBuffer[peerKey] || []).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
-  candBuffer[peerKey] = [];
+function flushCands(peerKey) {
+  const pc = peers[peerKey]; if (!pc) return;
+  (candBuffers[peerKey]||[]).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
+  candBuffers[peerKey] = [];
 }
 
-function playAudioForPeer(peerKey, stream) {
-  let a = document.getElementById('audio-'+peerKey);
+async function sendOffer(peerKey) {
+  if (peers[peerKey]) return;
+  const mk = myCallKey();
+  const pc = makePeer(peerKey);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await callRef.child('signals/'+peerKey+'/'+mk).set({ type:'offer', sdp:offer.sdp }).catch(()=>{});
+}
+
+async function onOffer(fromKey, sdp) {
+  if (peers[fromKey]) return;
+  const mk = myCallKey();
+  const pc = makePeer(fromKey);
+  await pc.setRemoteDescription(new RTCSessionDescription({ type:'offer', sdp }));
+  flushCands(fromKey);
+  const ans = await pc.createAnswer();
+  await pc.setLocalDescription(ans);
+  await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp:ans.sdp }).catch(()=>{});
+  updateCallStatus();
+}
+
+async function onAnswer(fromKey, sdp) {
+  const pc = peers[fromKey];
+  if (!pc || pc.remoteDescription) return;
+  await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp })).catch(()=>{});
+  flushCands(fromKey);
+  updateCallStatus();
+}
+
+function dropPeer(peerKey) {
+  (peerUnsubs[peerKey]||[]).forEach(f=>{try{f();}catch(e){}});
+  delete peerUnsubs[peerKey];
+  if (peers[peerKey]) { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
+  delete candBuffers[peerKey];
+  const a = document.getElementById('aud-'+peerKey); if(a) a.remove();
+  const t = document.getElementById('vtile-'+peerKey); if(t) t.remove();
+  updateGrid();
+}
+
+// ── MEDIA ELEMENTS ────────────────────────────────────────────
+
+function setAudioEl(peerKey, stream) {
+  let a = document.getElementById('aud-'+peerKey);
   if (!a) {
     a = document.createElement('audio');
-    a.id = 'audio-'+peerKey;
+    a.id = 'aud-'+peerKey;
     a.autoplay = true;
     a.style.display = 'none';
     document.body.appendChild(a);
@@ -1264,44 +1274,68 @@ function playAudioForPeer(peerKey, stream) {
   a.play().catch(()=>{});
 }
 
-function playVideoForPeer(peerKey, stream) {
-  if (!isVideo) return; // don't show video UI for audio calls
+function setVideoTile(peerKey, stream) {
   const grid = document.getElementById('vcall-grid');
   let tile = document.getElementById('vtile-'+peerKey);
   if (!tile) {
     tile = document.createElement('div');
     tile.className = 'vtile';
     tile.id = 'vtile-'+peerKey;
-    const vid = document.createElement('video');
-    vid.autoplay = true; vid.playsinline = true;
-    vid.style.cssText = 'width:100%;height:100%;object-fit:cover';
-    tile.appendChild(vid);
+    const v = document.createElement('video');
+    v.autoplay = true; v.playsinline = true;
+    v.style.cssText = 'width:100%;height:100%;object-fit:cover';
+    tile.appendChild(v);
     const lbl = document.createElement('div');
     lbl.className = 'vtile-name'; lbl.textContent = peerKey;
     callRef.child('participants/'+peerKey).once('value', s => {
-      if (s.val()?.name) lbl.textContent = s.val().name;
+      if (s.val() && s.val().name) lbl.textContent = s.val().name;
     });
     tile.appendChild(lbl);
     grid.appendChild(tile);
     updateGrid();
   }
-  tile.querySelector('video').srcObject = stream;
-  tile.querySelector('video').play().catch(()=>{});
-}
-
-function removePeer(peerKey) {
-  if (peerUnsubs[peerKey]) { peerUnsubs[peerKey].forEach(fn=>{try{fn();}catch(e){}}); delete peerUnsubs[peerKey]; }
-  if (peers[peerKey])      { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
-  delete candBuffer[peerKey];
-  const a = document.getElementById('audio-'+peerKey); if (a) a.remove();
-  const t = document.getElementById('vtile-'+peerKey); if (t) t.remove();
-  updateGrid();
+  const vid = tile.querySelector('video');
+  vid.srcObject = stream;
+  vid.play().catch(()=>{});
 }
 
 function updateGrid() {
-  const grid  = document.getElementById('vcall-grid');
-  const count = grid.children.length;
-  grid.className = 'p' + Math.max(1, Math.min(count, 4));
+  const grid = document.getElementById('vcall-grid');
+  grid.className = 'p' + Math.max(1, Math.min(grid.children.length, 4));
+}
+
+// ── CONTROLS ──────────────────────────────────────────────────
+
+function acceptCall() {
+  const sub = document.getElementById('cb-call-type').textContent;
+  startCall(sub.includes('video') ? 'video' : 'audio');
+}
+function declineCall() { hideBanner(); }
+function hangup()      { teardownCall(); }
+
+function teardownCall() {
+  try { callRef.child('participants/'+myCallKey()).remove(); } catch(e){}
+  Object.keys(peers).forEach(k => dropPeer(k));
+  peers = {}; peerUnsubs = {}; candBuffers = {};
+  callUnsub.forEach(f=>{try{f();}catch(e){}}); callUnsub = [];
+  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
+  clearInterval(callTick); callTick = null; callSecs = 0;
+  isMuted = false; isVideo = false; isCamOff = false;
+  try { document.getElementById('vcall-overlay').classList.remove('on'); } catch(e){}
+  try { document.getElementById('vcall-grid').innerHTML = ''; } catch(e){}
+  try { document.getElementById('vcall-self-vid').srcObject = null; } catch(e){}
+  hideCallBar(); hideBanner();
+  document.querySelectorAll('[id^="aud-"]').forEach(el=>el.remove());
+}
+
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
+  const b = document.getElementById('mute-btn');
+  const vb = document.getElementById('vcall-mic');
+  if (b)  { b.textContent = isMuted?'unmute':'mute'; b.className='cxbtn sm'+(isMuted?' muted':''); }
+  if (vb) { vb.className = 'vcbtn mic'+(isMuted?' off':''); }
 }
 
 function toggleCamera() {
@@ -1315,55 +1349,22 @@ function toggleCamera() {
   av.style.display = isCamOff ? '' : 'none';
 }
 
-function acceptCall() {
-  const sub = document.getElementById('cb-call-type').textContent;
-  startCall(sub.includes('video') ? 'video' : 'audio');
-}
-function declineCall() { hideBanner(); }
-function hangup()      { teardownCall(); }
-
-function teardownCall() {
-  if (callRef && ME) try{ callRef.child('participants/'+myCallKey()).remove(); }catch(e){}
-  Object.keys(peers).forEach(k => removePeer(k));
-  peers = {}; peerUnsubs = {}; candBuffer = {};
-  callUnsub.forEach(fn => { try{fn();}catch(e){} });
-  callUnsub = [];
-  if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
-  clearInterval(callTick); callTick = null; callSecs = 0;
-  isMuted = false; isVideo = false; isCamOff = false;
-  try { document.getElementById('vcall-overlay').classList.remove('on'); } catch(e){}
-  try { document.getElementById('vcall-grid').innerHTML = ''; } catch(e){}
-  try { document.getElementById('vcall-self-vid').srcObject = null; } catch(e){}
-  hideCallBar(); hideBanner();
-  document.querySelectorAll('[id^="audio-"]').forEach(el=>el.remove());
-}
-
-function toggleMute() {
-  if (!localStream) return;
-  isMuted = !isMuted;
-  localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
-  const btn  = document.getElementById('mute-btn');
-  const vbtn = document.getElementById('vcall-mic');
-  if (btn)  { btn.textContent = isMuted?'unmute':'mute'; btn.className = 'cxbtn sm'+(isMuted?' muted':''); }
-  if (vbtn) { vbtn.className = 'vcbtn mic'+(isMuted?' off':''); }
-}
-
 function updateCallStatus() {
   if (!callRef || !localStream) return;
   callRef.child('participants').once('value', snap => {
     const n = snap.numChildren();
-    const label = n <= 1 ? 'waiting...' : n+' in call';
-    try { document.getElementById('cb-label').textContent = label; } catch(e){}
-    try { document.getElementById('vcall-timer').textContent = label; } catch(e){}
+    const lbl = n<=1 ? 'waiting...' : n+' in call';
+    try { document.getElementById('cb-label').textContent = lbl; } catch(e){}
+    try { document.getElementById('vcall-timer').textContent = lbl; } catch(e){}
   });
 }
 
-function showCallBar(label) {
-  document.getElementById('cb-label').textContent = label;
+function showCallBar(lbl) {
+  document.getElementById('cb-label').textContent = lbl;
   document.getElementById('cb-timer').textContent = '';
   document.getElementById('call-bar').classList.add('on');
   document.getElementById('mute-btn').textContent = 'mute';
-  document.getElementById('mute-btn').className   = 'cxbtn sm';
+  document.getElementById('mute-btn').className = 'cxbtn sm';
 }
 function hideCallBar() { document.getElementById('call-bar').classList.remove('on'); }
 function hideBanner()  { document.getElementById('call-banner').classList.remove('on'); }
@@ -1380,9 +1381,11 @@ function startCallTimer() {
 }
 
 function updateBannerCallType(parts) {
-  const hasVideo = Object.values(parts).some(v => v && v.video);
-  document.getElementById('cb-call-type').textContent = hasVideo ? 'incoming video call' : 'incoming voice call';
+  const hasVid = Object.values(parts).some(v => v && v.video);
+  document.getElementById('cb-call-type').textContent = hasVid ? 'incoming video call' : 'incoming voice call';
 }
+
+
 
 
 // ── RECENT CHATS ──────────────────────────────────────────────
