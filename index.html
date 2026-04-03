@@ -541,7 +541,7 @@ let lastDay   = null;
 let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 let unread = 0; // unread message counter for tab title
 
 // ── SECRET STATE ────────────────────────────────────────
@@ -1104,224 +1104,203 @@ function closeCallPicker() {
 
 async function startCall(type) {
   closeCallPicker();
-  if (localStream) { toast('already in call'); return; }
+  if (localStream) { toast('already in a call'); return; }
   isVideo = (type === 'video');
+
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       audio: true,
-      video: isVideo ? { facingMode: 'user', width:{ideal:1280}, height:{ideal:720} } : false
+      video: isVideo ? { facingMode:'user' } : false
     });
-  } catch(e) { toast(isVideo ? 'camera/mic access denied' : 'microphone access denied'); return; }
+  } catch(e) {
+    toast('could not access ' + (isVideo ? 'camera/mic' : 'microphone'));
+    isVideo = false; return;
+  }
 
   hideBanner();
-  document.getElementById('vcall-overlay').classList.remove('on'); // always start clean
+
   if (isVideo) {
-    showVideoOverlay();
+    // Show video overlay with local self preview
+    const selfVid = document.getElementById('vcall-self-vid');
+    selfVid.srcObject = localStream;
+    selfVid.play().catch(()=>{});
+    document.getElementById('vcall-self').style.display = '';
+    document.getElementById('vcall-overlay').classList.add('on');
+    updateGrid();
   } else {
+    // Audio only — just show thin bar, nothing full screen
     showCallBar('connecting...');
   }
 
   const mk = myCallKey();
-
-  // Register presence with call type
-  const presRef = callRef.child('participants/' + mk);
-  await presRef.set({ name: ME, video: isVideo, joinedAt: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+  const presRef = callRef.child('participants/'+mk);
+  await presRef.set({ name:ME, video:isVideo, t:firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
   presRef.onDisconnect().remove();
-  callUnsub.push(() => { try { presRef.onDisconnect().cancel(); presRef.remove(); } catch(e){} });
+  callUnsub.push(() => { try{ presRef.onDisconnect().cancel(); presRef.remove(); }catch(e){} });
 
-  // Signal listener
-  const sigRef = callRef.child('signals/' + mk);
+  // Listen for signals (offers + answers) addressed to me
+  const sigRef = callRef.child('signals/'+mk);
   const sigUn = sigRef.on('child_added', async snap => {
-    const fromKey = snap.key, data = snap.val();
-    if (!data) return;
-    if (data.type === 'offer')  await handleOffer(fromKey, data.sdp);
-    if (data.type === 'answer') await handleAnswer(fromKey, data.sdp);
+    const fromKey = snap.key, d = snap.val();
+    if (!d) return;
+    if (d.type === 'offer')  await handleOffer(fromKey, d.sdp);
+    if (d.type === 'answer') await handleAnswer(fromKey, d.sdp);
   });
   callUnsub.push(() => sigRef.off('child_added', sigUn));
 
-  // Participant change listeners
+  // Watch participants leaving
   const partRef = callRef.child('participants');
-  const partRemUn = partRef.on('child_removed', snap => {
-    if (snap.key !== mk) { closePeer(snap.key); removeVideoTile(snap.key); }
+  const remUn = partRef.on('child_removed', snap => {
+    if (snap.key !== mk) removePeer(snap.key);
     updateCallStatus();
   });
-  const partAddUn = partRef.on('child_added', () => updateCallStatus());
-  callUnsub.push(() => { partRef.off('child_removed', partRemUn); partRef.off('child_added', partAddUn); });
+  const addUn = partRef.on('child_added', () => updateCallStatus());
+  callUnsub.push(() => { partRef.off('child_removed', remUn); partRef.off('child_added', addUn); });
 
-  // Offer all existing participants
+  // Send offers to anyone already in the call
   const snap = await callRef.child('participants').once('value');
-  const existing = [];
-  snap.forEach(c => { if (c.key !== mk) existing.push(c.key); });
-  for (const peerKey of existing) await createOfferTo(peerKey);
+  const toOffer = [];
+  snap.forEach(c => { if (c.key !== mk) toOffer.push(c.key); });
+  for (const pk of toOffer) await createOffer(pk);
 
   startCallTimer();
   updateCallStatus();
 }
 
+// Create a peer connection and send an offer to peerKey
+async function createOffer(peerKey) {
+  if (peers[peerKey]) return;
+  const mk  = myCallKey();
+  const pc  = makePeer(peerKey, mk);
+  const off = await pc.createOffer();
+  await pc.setLocalDescription(off);
+  await callRef.child('signals/'+peerKey+'/'+mk).set({ type:'offer', sdp:off.sdp }).catch(()=>{});
+}
+
+// Someone sent us an offer — respond with an answer
 async function handleOffer(fromKey, sdp) {
   if (peers[fromKey]) return;
   const mk = myCallKey();
-  const pc = new RTCPeerConnection(ICE);
-  peers[fromKey] = pc;
-  peerUnsubs[fromKey] = [];
-  candBuffer[fromKey] = [];
-
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  pc.ontrack = e => handleRemoteStream(fromKey, e.streams[0]);
-  pc.onicecandidate = e => {
-    if (e.candidate) callRef.child('candidates/'+fromKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
-  };
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState==='failed'||pc.connectionState==='disconnected') { closePeer(fromKey); removeVideoTile(fromKey); }
-  };
-
-  const candRef = callRef.child('candidates/'+mk+'/'+fromKey);
-  const candUn = candRef.on('child_added', snap => {
-    const c = snap.val(); if (!c || !peers[fromKey]) return;
-    const p = peers[fromKey];
-    if (p.remoteDescription) p.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
-    else { candBuffer[fromKey] = candBuffer[fromKey]||[]; candBuffer[fromKey].push(c); }
-  });
-  peerUnsubs[fromKey].push(() => candRef.off('child_added', candUn));
-
+  const pc = makePeer(fromKey, mk);
   await pc.setRemoteDescription(new RTCSessionDescription({ type:'offer', sdp }));
-  (candBuffer[fromKey]||[]).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
-  candBuffer[fromKey] = [];
-
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
-  await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp: answer.sdp }).catch(()=>{});
+  flushCandidates(fromKey, pc);
+  const ans = await pc.createAnswer();
+  await pc.setLocalDescription(ans);
+  await callRef.child('signals/'+fromKey+'/'+mk).set({ type:'answer', sdp:ans.sdp }).catch(()=>{});
   updateCallStatus();
 }
 
+// They answered our offer
 async function handleAnswer(fromKey, sdp) {
   const pc = peers[fromKey];
   if (!pc || pc.remoteDescription) return;
-  try {
-    await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp }));
-    (candBuffer[fromKey]||[]).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
-    candBuffer[fromKey] = [];
-  } catch(e) {}
+  await pc.setRemoteDescription(new RTCSessionDescription({ type:'answer', sdp })).catch(()=>{});
+  flushCandidates(fromKey, pc);
   updateCallStatus();
 }
 
-async function createOfferTo(peerKey) {
-  if (peers[peerKey]) return;
-  const mk = myCallKey();
+// Create and wire up an RTCPeerConnection for peerKey
+function makePeer(peerKey, mk) {
   const pc = new RTCPeerConnection(ICE);
-  peers[peerKey] = pc;
+  peers[peerKey]      = pc;
   peerUnsubs[peerKey] = [];
   candBuffer[peerKey] = [];
 
+  // Add all local tracks
   localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-  pc.ontrack = e => handleRemoteStream(peerKey, e.streams[0]);
-  pc.onicecandidate = e => {
-    if (e.candidate) callRef.child('candidates/'+peerKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
-  };
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState==='failed'||pc.connectionState==='disconnected') { closePeer(peerKey); removeVideoTile(peerKey); }
+
+  // Receive remote tracks — create separate audio + video elements
+  pc.ontrack = e => {
+    const stream = e.streams[0] || new MediaStream([e.track]);
+    if (e.track.kind === 'audio') {
+      playAudioForPeer(peerKey, stream);
+    } else if (e.track.kind === 'video') {
+      playVideoForPeer(peerKey, stream);
+    }
   };
 
+  // Send ICE candidates
+  pc.onicecandidate = e => {
+    if (e.candidate)
+      callRef.child('candidates/'+peerKey+'/'+mk).push(e.candidate.toJSON()).catch(()=>{});
+  };
+
+  // Watch for connection failure
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected')
+      removePeer(peerKey);
+  };
+
+  // Listen for ICE candidates from this peer — buffer if remoteDescription not set yet
   const candRef = callRef.child('candidates/'+mk+'/'+peerKey);
-  const candUn = candRef.on('child_added', snap => {
-    const c = snap.val(); if (!c || !peers[peerKey]) return;
-    const p = peers[peerKey];
-    if (p.remoteDescription) p.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
-    else { candBuffer[peerKey] = candBuffer[peerKey]||[]; candBuffer[peerKey].push(c); }
+  const candUn  = candRef.on('child_added', snap => {
+    const c = snap.val(); if (!c) return;
+    if (pc.remoteDescription) {
+      pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});
+    } else {
+      candBuffer[peerKey].push(c);
+    }
   });
   peerUnsubs[peerKey].push(() => candRef.off('child_added', candUn));
 
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-  await callRef.child('signals/'+peerKey+'/'+mk).set({ type:'offer', sdp: offer.sdp }).catch(()=>{});
+  return pc;
 }
 
-function handleRemoteStream(peerKey, stream) {
-  // Audio - always create/update the audio element for this peer
+function flushCandidates(peerKey, pc) {
+  (candBuffer[peerKey] || []).forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}));
+  candBuffer[peerKey] = [];
+}
+
+function playAudioForPeer(peerKey, stream) {
   let a = document.getElementById('audio-'+peerKey);
   if (!a) {
     a = document.createElement('audio');
     a.id = 'audio-'+peerKey;
-    a.className = 'peer-audio';
     a.autoplay = true;
     a.style.display = 'none';
     document.body.appendChild(a);
   }
-  // Only assign audio-only stream to audio element to avoid echo on video calls
-  if (!isVideo) {
-    a.srcObject = stream;
-    a.play().catch(()=>{});
-    return; // audio-only — never show video overlay
-  }
-
-  // Video call — set audio element to stream (video element handles display)
   a.srcObject = stream;
   a.play().catch(()=>{});
+}
 
-  // Show/update video tile
-  const hasVideo = stream.getVideoTracks().length > 0;
+function playVideoForPeer(peerKey, stream) {
+  if (!isVideo) return; // don't show video UI for audio calls
   const grid = document.getElementById('vcall-grid');
   let tile = document.getElementById('vtile-'+peerKey);
-
   if (!tile) {
     tile = document.createElement('div');
     tile.className = 'vtile';
     tile.id = 'vtile-'+peerKey;
-    grid.appendChild(tile);
-  }
-  tile.innerHTML = '';
-
-  if (hasVideo) {
     const vid = document.createElement('video');
-    vid.autoplay = true;
-    vid.playsinline = true;
+    vid.autoplay = true; vid.playsinline = true;
     vid.style.cssText = 'width:100%;height:100%;object-fit:cover';
-    vid.srcObject = stream;
-    vid.play().catch(()=>{});
     tile.appendChild(vid);
-  } else {
-    const av = document.createElement('div');
-    av.className = 'vtile-avatar';
-    av.textContent = peerKey.charAt(0).toUpperCase();
-    tile.appendChild(av);
+    const lbl = document.createElement('div');
+    lbl.className = 'vtile-name'; lbl.textContent = peerKey;
+    callRef.child('participants/'+peerKey).once('value', s => {
+      if (s.val()?.name) lbl.textContent = s.val().name;
+    });
+    tile.appendChild(lbl);
+    grid.appendChild(tile);
+    updateGrid();
   }
-
-  const nameEl = document.createElement('div');
-  nameEl.className = 'vtile-name';
-  nameEl.textContent = peerKey;
-  callRef.child('participants/'+peerKey).once('value', s => {
-    if (s.val() && s.val().name) nameEl.textContent = s.val().name;
-  });
-  tile.appendChild(nameEl);
-  updateGrid();
+  tile.querySelector('video').srcObject = stream;
+  tile.querySelector('video').play().catch(()=>{});
 }
 
-// ── VIDEO UI ──────────────────────────────────────────────────
-function showVideoOverlay() {
-  document.getElementById('vcall-overlay').classList.add('on');
-  const selfVid = document.getElementById('vcall-self-vid');
-  const selfAv  = document.getElementById('vcall-self-avatar');
-  selfVid.srcObject = localStream;
-  selfVid.style.display = '';
-  selfAv.style.display  = 'none';
-  document.getElementById('vcall-self').style.display = '';
-}
-
-function showVideoTile(peerKey, stream, hasVideo) {
-  // Delegate to handleRemoteStream for consistency
-  handleRemoteStream(peerKey, stream);
-}
-
-function removeVideoTile(peerKey) {
-  const tile = document.getElementById('vtile-'+peerKey);
-  if (tile) tile.remove();
+function removePeer(peerKey) {
+  if (peerUnsubs[peerKey]) { peerUnsubs[peerKey].forEach(fn=>{try{fn();}catch(e){}}); delete peerUnsubs[peerKey]; }
+  if (peers[peerKey])      { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
+  delete candBuffer[peerKey];
+  const a = document.getElementById('audio-'+peerKey); if (a) a.remove();
+  const t = document.getElementById('vtile-'+peerKey); if (t) t.remove();
   updateGrid();
 }
 
 function updateGrid() {
   const grid  = document.getElementById('vcall-grid');
   const count = grid.children.length;
-  // p1 is the minimum — even 0 tiles uses p1 so the grid has height
   grid.className = 'p' + Math.max(1, Math.min(count, 4));
 }
 
@@ -1329,19 +1308,11 @@ function toggleCamera() {
   if (!localStream) return;
   isCamOff = !isCamOff;
   localStream.getVideoTracks().forEach(t => { t.enabled = !isCamOff; });
-  document.getElementById('vcall-cam').className = 'vcbtn cam' + (isCamOff ? ' off' : '');
-  const selfVid = document.getElementById('vcall-self-vid');
-  const selfAv  = document.getElementById('vcall-self-avatar');
-  selfVid.style.display = isCamOff ? 'none' : '';
-  selfAv.style.display  = isCamOff ? '' : 'none';
-}
-
-function closePeer(peerKey) {
-  if (peerUnsubs[peerKey]) { peerUnsubs[peerKey].forEach(fn=>{try{fn();}catch(e){}}); delete peerUnsubs[peerKey]; }
-  if (peers[peerKey]) { try{peers[peerKey].close();}catch(e){} delete peers[peerKey]; }
-  delete candBuffer[peerKey];
-  const a = document.getElementById('audio-'+peerKey);
-  if (a) a.remove();
+  document.getElementById('vcall-cam').className = 'vcbtn cam'+(isCamOff?' off':'');
+  const v = document.getElementById('vcall-self-vid');
+  const av = document.getElementById('vcall-self-avatar');
+  v.style.display  = isCamOff ? 'none' : '';
+  av.style.display = isCamOff ? '' : 'none';
 }
 
 function acceptCall() {
@@ -1349,43 +1320,41 @@ function acceptCall() {
   startCall(sub.includes('video') ? 'video' : 'audio');
 }
 function declineCall() { hideBanner(); }
-function hangup() { teardownCall(); }
+function hangup()      { teardownCall(); }
 
 function teardownCall() {
-  if (callRef && ME) { try { callRef.child('participants/'+myCallKey()).remove(); } catch(e){} }
-  Object.keys(peers).forEach(k => closePeer(k));
+  if (callRef && ME) try{ callRef.child('participants/'+myCallKey()).remove(); }catch(e){}
+  Object.keys(peers).forEach(k => removePeer(k));
   peers = {}; peerUnsubs = {}; candBuffer = {};
   callUnsub.forEach(fn => { try{fn();}catch(e){} });
   callUnsub = [];
   if (localStream) { localStream.getTracks().forEach(t=>t.stop()); localStream = null; }
   clearInterval(callTick); callTick = null; callSecs = 0;
   isMuted = false; isVideo = false; isCamOff = false;
-  document.getElementById('vcall-overlay').classList.remove('on');
-  document.getElementById('vcall-grid').innerHTML = '';
-  document.getElementById('vcall-self-vid').srcObject = null;
+  try { document.getElementById('vcall-overlay').classList.remove('on'); } catch(e){}
+  try { document.getElementById('vcall-grid').innerHTML = ''; } catch(e){}
+  try { document.getElementById('vcall-self-vid').srcObject = null; } catch(e){}
   hideCallBar(); hideBanner();
-  document.querySelectorAll('.peer-audio').forEach(el=>el.remove());
+  document.querySelectorAll('[id^="audio-"]').forEach(el=>el.remove());
 }
 
 function toggleMute() {
   if (!localStream) return;
   isMuted = !isMuted;
   localStream.getAudioTracks().forEach(t => { t.enabled = !isMuted; });
-  // Update audio-only call bar
-  const btn = document.getElementById('mute-btn');
-  if (btn) { btn.textContent = isMuted ? 'unmute' : 'mute'; btn.className = 'cxbtn sm'+(isMuted?' muted':''); }
-  // Update video call mic button
+  const btn  = document.getElementById('mute-btn');
   const vbtn = document.getElementById('vcall-mic');
-  if (vbtn) vbtn.className = 'vcbtn mic'+(isMuted?' off':'');
+  if (btn)  { btn.textContent = isMuted?'unmute':'mute'; btn.className = 'cxbtn sm'+(isMuted?' muted':''); }
+  if (vbtn) { vbtn.className = 'vcbtn mic'+(isMuted?' off':''); }
 }
 
 function updateCallStatus() {
   if (!callRef || !localStream) return;
   callRef.child('participants').once('value', snap => {
-    const count = snap.numChildren();
-    const label = count <= 1 ? 'waiting...' : count + ' in call';
-    document.getElementById('cb-label').textContent = label;
-    document.getElementById('vcall-timer').textContent = label;
+    const n = snap.numChildren();
+    const label = n <= 1 ? 'waiting...' : n+' in call';
+    try { document.getElementById('cb-label').textContent = label; } catch(e){}
+    try { document.getElementById('vcall-timer').textContent = label; } catch(e){}
   });
 }
 
@@ -1405,16 +1374,16 @@ function startCallTimer() {
     callSecs++;
     const m = Math.floor(callSecs/60), s = String(callSecs%60).padStart(2,'0');
     const t = m+':'+s;
-    document.getElementById('cb-timer').textContent = t;
-    document.getElementById('vcall-timer').textContent = t;
+    try { document.getElementById('cb-timer').textContent = t; } catch(e){}
+    try { document.getElementById('vcall-timer').textContent = t; } catch(e){}
   }, 1000);
 }
 
-// Update incoming call banner — never mutate isVideo here
 function updateBannerCallType(parts) {
   const hasVideo = Object.values(parts).some(v => v && v.video);
   document.getElementById('cb-call-type').textContent = hasVideo ? 'incoming video call' : 'incoming voice call';
 }
+
 
 // ── RECENT CHATS ──────────────────────────────────────────────
 function getRecent() {
