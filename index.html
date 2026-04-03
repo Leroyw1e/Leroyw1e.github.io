@@ -541,7 +541,7 @@ let lastDay   = null;
 let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 let unread = 0; // unread message counter for tab title
 
 // ── SECRET STATE ────────────────────────────────────────
@@ -1114,6 +1114,7 @@ async function startCall(type) {
   } catch(e) { toast(isVideo ? 'camera/mic access denied' : 'microphone access denied'); return; }
 
   hideBanner();
+  document.getElementById('vcall-overlay').classList.remove('on'); // always start clean
   if (isVideo) {
     showVideoOverlay();
   } else {
@@ -1236,7 +1237,7 @@ async function createOfferTo(peerKey) {
 }
 
 function handleRemoteStream(peerKey, stream) {
-  // Always set up audio
+  // Audio - always create/update the audio element for this peer
   let a = document.getElementById('audio-'+peerKey);
   if (!a) {
     a = document.createElement('audio');
@@ -1246,102 +1247,93 @@ function handleRemoteStream(peerKey, stream) {
     a.style.display = 'none';
     document.body.appendChild(a);
   }
+  // Only assign audio-only stream to audio element to avoid echo on video calls
+  if (!isVideo) {
+    a.srcObject = stream;
+    a.play().catch(()=>{});
+    return; // audio-only — never show video overlay
+  }
+
+  // Video call — set audio element to stream (video element handles display)
   a.srcObject = stream;
   a.play().catch(()=>{});
 
-  // If there's a video track, show the video tile
+  // Show/update video tile
   const hasVideo = stream.getVideoTracks().length > 0;
-  if (hasVideo || isVideo) {
-    showVideoTile(peerKey, stream, hasVideo);
-  }
-}
-
-// ── VIDEO UI ──────────────────────────────────────────────────
-function showVideoOverlay() {
-  const overlay = document.getElementById('vcall-overlay');
-  overlay.classList.add('on');
-  // Show local video in self preview
-  const selfVid = document.getElementById('vcall-self-vid');
-  const selfAv  = document.getElementById('vcall-self-avatar');
-  if (isVideo && localStream) {
-    selfVid.srcObject = localStream;
-    selfVid.style.display = '';
-    selfAv.style.display  = 'none';
-  } else {
-    selfVid.style.display = 'none';
-    selfAv.style.display  = '';
-  }
-  document.getElementById('vcall-self').style.display = isVideo ? '' : 'none';
-  updateGrid();
-}
-
-function showVideoTile(peerKey, stream, hasVideo) {
   const grid = document.getElementById('vcall-grid');
   let tile = document.getElementById('vtile-'+peerKey);
+
   if (!tile) {
     tile = document.createElement('div');
     tile.className = 'vtile';
     tile.id = 'vtile-'+peerKey;
-
-    if (hasVideo) {
-      const vid = document.createElement('video');
-      vid.autoplay = true;
-      vid.playsinline = true;
-      vid.srcObject = stream;
-      vid.play().catch(()=>{});
-      tile.appendChild(vid);
-    } else {
-      const av = document.createElement('div');
-      av.className = 'vtile-avatar';
-      av.textContent = peerKey.charAt(0).toUpperCase();
-      tile.appendChild(av);
-    }
-
-    // Get peer name from Firebase
-    const nameEl = document.createElement('div');
-    nameEl.className = 'vtile-name';
-    nameEl.textContent = peerKey;
-    callRef.child('participants/'+peerKey).once('value', s => {
-      if (s.val() && s.val().name) nameEl.textContent = s.val().name;
-    });
-    tile.appendChild(nameEl);
     grid.appendChild(tile);
-
-    // Show overlay if not already
-    if (!document.getElementById('vcall-overlay').classList.contains('on')) {
-      showVideoOverlay();
-    }
-    updateGrid();
   }
+  tile.innerHTML = '';
+
+  if (hasVideo) {
+    const vid = document.createElement('video');
+    vid.autoplay = true;
+    vid.playsinline = true;
+    vid.style.cssText = 'width:100%;height:100%;object-fit:cover';
+    vid.srcObject = stream;
+    vid.play().catch(()=>{});
+    tile.appendChild(vid);
+  } else {
+    const av = document.createElement('div');
+    av.className = 'vtile-avatar';
+    av.textContent = peerKey.charAt(0).toUpperCase();
+    tile.appendChild(av);
+  }
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'vtile-name';
+  nameEl.textContent = peerKey;
+  callRef.child('participants/'+peerKey).once('value', s => {
+    if (s.val() && s.val().name) nameEl.textContent = s.val().name;
+  });
+  tile.appendChild(nameEl);
+  updateGrid();
+}
+
+// ── VIDEO UI ──────────────────────────────────────────────────
+function showVideoOverlay() {
+  document.getElementById('vcall-overlay').classList.add('on');
+  const selfVid = document.getElementById('vcall-self-vid');
+  const selfAv  = document.getElementById('vcall-self-avatar');
+  selfVid.srcObject = localStream;
+  selfVid.style.display = '';
+  selfAv.style.display  = 'none';
+  document.getElementById('vcall-self').style.display = '';
+}
+
+function showVideoTile(peerKey, stream, hasVideo) {
+  // Delegate to handleRemoteStream for consistency
+  handleRemoteStream(peerKey, stream);
 }
 
 function removeVideoTile(peerKey) {
   const tile = document.getElementById('vtile-'+peerKey);
   if (tile) tile.remove();
   updateGrid();
-  // If no tiles left and audio-only, hide overlay
-  const grid = document.getElementById('vcall-grid');
-  if (!grid.children.length && !isVideo) {
-    document.getElementById('vcall-overlay').classList.remove('on');
-  }
 }
 
 function updateGrid() {
-  const grid = document.getElementById('vcall-grid');
+  const grid  = document.getElementById('vcall-grid');
   const count = grid.children.length;
-  grid.className = 'p' + Math.min(count, 4);
+  // p1 is the minimum — even 0 tiles uses p1 so the grid has height
+  grid.className = 'p' + Math.max(1, Math.min(count, 4));
 }
 
 function toggleCamera() {
   if (!localStream) return;
   isCamOff = !isCamOff;
   localStream.getVideoTracks().forEach(t => { t.enabled = !isCamOff; });
-  const btn = document.getElementById('vcall-cam');
-  btn.className = 'vcbtn cam' + (isCamOff ? ' off' : '');
+  document.getElementById('vcall-cam').className = 'vcbtn cam' + (isCamOff ? ' off' : '');
   const selfVid = document.getElementById('vcall-self-vid');
   const selfAv  = document.getElementById('vcall-self-avatar');
-  if (isCamOff) { selfVid.style.display='none'; selfAv.style.display=''; }
-  else          { selfVid.style.display=''; selfAv.style.display='none'; }
+  selfVid.style.display = isCamOff ? 'none' : '';
+  selfAv.style.display  = isCamOff ? '' : 'none';
 }
 
 function closePeer(peerKey) {
@@ -1352,7 +1344,10 @@ function closePeer(peerKey) {
   if (a) a.remove();
 }
 
-function acceptCall() { startCall(isVideo ? 'video' : 'audio'); }
+function acceptCall() {
+  const sub = document.getElementById('cb-call-type').textContent;
+  startCall(sub.includes('video') ? 'video' : 'audio');
+}
 function declineCall() { hideBanner(); }
 function hangup() { teardownCall(); }
 
@@ -1415,11 +1410,10 @@ function startCallTimer() {
   }, 1000);
 }
 
-// Update incoming call banner call type when watcher sees participants with video
+// Update incoming call banner — never mutate isVideo here
 function updateBannerCallType(parts) {
   const hasVideo = Object.values(parts).some(v => v && v.video);
   document.getElementById('cb-call-type').textContent = hasVideo ? 'incoming video call' : 'incoming voice call';
-  isVideo = hasVideo; // match caller's type when accepting
 }
 
 // ── RECENT CHATS ──────────────────────────────────────────────
