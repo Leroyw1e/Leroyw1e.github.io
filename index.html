@@ -220,9 +220,6 @@
     .cxbtn.muted{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
     .cxbtn.end{background:rgba(255,77,109,.15);color:var(--danger);border:1px solid rgba(255,77,109,.3)}
 
-    #call-btn{display:none}
-    #call-btn.dm-active{display:flex}
-
     /* dm invites */
     .invite-sec{margin-top:20px}
     .invite-sec:empty{display:none}
@@ -291,6 +288,50 @@
     .cp-btn-sub{font-size:11px;color:var(--dim)}
     .cp-cancel{text-align:center;font-size:12px;color:var(--muted);cursor:pointer;padding:6px}
     .cp-cancel:hover{color:var(--danger)}
+
+    /* attach dropdown */
+    .attach-wrap{position:relative;flex-shrink:0}
+    #attach-menu{display:none;position:absolute;bottom:54px;right:0;background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:6px;min-width:170px;box-shadow:0 8px 32px rgba(0,0,0,.4);z-index:50;animation:up .15s ease both}
+    #attach-menu.on{display:flex;flex-direction:column;gap:2px}
+    .am-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;transition:background .12s;border:none;background:transparent;font-family:var(--mono);font-size:12px;color:var(--text);width:100%;text-align:left}
+    .am-item:hover{background:var(--surf2)}
+    .am-item svg{width:16px;height:16px;flex-shrink:0}
+    .am-item.game-item{display:none}
+    .am-item.game-item.active{display:flex}
+    .msg-game{background:var(--surf2);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;max-width:240px}
+    .msg-game-name{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--accent)}
+    .msg-game-desc{font-size:11px;color:var(--dim)}
+    .join-game-btn{font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 18px;border-radius:20px;background:var(--accent);color:#000;border:none;cursor:pointer;align-self:flex-start;transition:opacity .15s}
+    .join-game-btn:hover{opacity:.82}
+    .join-game-btn:disabled{opacity:.4;cursor:default}
+
+    #game-picker{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:450;align-items:flex-end;justify-content:center;padding-bottom:20px}
+    #game-picker.on{display:flex}
+    .gp-sheet{background:var(--surf);border:1px solid var(--border);border-radius:16px;padding:18px;width:calc(100% - 40px);max-width:360px;display:flex;flex-direction:column;gap:10px;animation:up .22s ease both}
+    .gp-title{font-size:10px;color:var(--dim);text-align:center;letter-spacing:.14em;text-transform:uppercase;margin-bottom:2px}
+    .gp-btn{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--surf2);cursor:pointer;transition:border-color .15s}
+    .gp-btn:hover{border-color:var(--accent)}
+    .gp-ico{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .gp-info{display:flex;flex-direction:column;gap:2px}
+    .gp-name{font-size:13px;font-weight:600;color:var(--text);font-family:var(--sans)}
+    .gp-desc{font-size:11px;color:var(--dim)}
+    .gp-cancel{text-align:center;font-size:12px;color:var(--muted);cursor:pointer;padding:4px}
+    .gp-cancel:hover{color:var(--danger)}
+
+    #game-overlay{display:none;position:fixed;inset:0;background:#0b0b0e;z-index:350;flex-direction:column}
+    #game-overlay.on{display:flex}
+    #game-hdr{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #1c1c24;flex-shrink:0}
+    #game-title{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--accent);letter-spacing:-0.5px}
+    #game-status{font-size:11px;color:var(--dim);flex:1}
+    #game-timer{font-size:13px;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:.04em;min-width:36px;text-align:right}
+    #game-canvas{flex:1;display:block;min-height:0}
+    #game-ftr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid #1c1c24;flex-shrink:0;gap:12px;background:#0b0b0e}
+    #game-dpad{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(2,44px);gap:5px}
+    .gd{background:#1a1a24;border:1px solid #2a2a38;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;user-select:none;-webkit-user-select:none;color:var(--muted);transition:background .1s}
+    .gd:active,.gd.pressed{background:#2a2a3a;color:var(--text)}
+    .gleave{font-family:var(--mono);font-size:11px;font-weight:700;padding:8px 18px;border-radius:20px;background:rgba(255,77,109,.12);color:var(--danger);border:1px solid rgba(255,77,109,.25);cursor:pointer;white-space:nowrap}
+    .gleave:hover{background:rgba(255,77,109,.22)}
+    .game-score{font-size:11px;color:var(--dim);text-align:right;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
     @media(max-width:500px){
       .msg{max-width:88%}
@@ -367,6 +408,7 @@ const FB = {
       <div class="cdot" id="cdot"></div>
       <button class="pbtn" onclick="copyLink()">share</button>
       <button class="pbtn" id="edit-btn" onclick="toggleEdit()">edit</button>
+      <button class="pbtn" id="call-btn" onclick="openCallPicker()" style="display:none">call</button>
       <button class="pbtn" onclick="leaveRoom()">leave</button>
     </div>
   </div>
@@ -404,18 +446,24 @@ const FB = {
   <div class="ftr">
     <div class="irow">
       <input type="text" id="mi" placeholder="type a message&hellip;" maxlength="500" autocomplete="off" spellcheck="false"/>
-      <button class="ibtn" id="call-btn" onclick="openCallPicker()" title="call">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.22 1.18 2 2 0 012.22 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-        </svg>
-      </button>
-      <button class="ibtn" onclick="document.getElementById('img-pick').click()" title="send image or video">
-        <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
-          <polyline points="21 15 16 10 5 21"/>
-        </svg>
-      </button>
-      <input type="file" id="img-pick" accept="image/*,video/*" onchange="imgPicked(event)"/>
+      <div class="attach-wrap">
+        <button class="ibtn" onclick="toggleAttach()" id="attach-btn" title="attach">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+        <div id="attach-menu">
+          <button class="am-item" onclick="triggerFilePick()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            photo / video
+          </button>
+          <button class="am-item game-item" id="game-menu-btn" onclick="openGamePickerFromMenu()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="16" cy="11" r="1" fill="var(--muted)"/><circle cx="19" cy="13" r="1" fill="var(--muted)"/></svg>
+            send a game
+          </button>
+        </div>
+      </div>
+      <input type="file" id="img-pick" accept="image/*,video/*" onchange="imgPicked(event)" style="display:none"/>
       <button class="sbtn" id="sbtn" onclick="send()">
         <svg viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -522,6 +570,48 @@ const FB = {
   </div>
 </div>
 
+<!-- GAME PICKER -->
+<div id="game-picker" onclick="if(event.target===this)closeGamePicker()">
+  <div class="gp-sheet">
+    <div class="gp-title">send a game</div>
+    <div class="gp-btn" onclick="launchGame('tron')">
+      <div class="gp-ico" style="background:rgba(0,229,160,.1)">&#x26A1;</div>
+      <div class="gp-info"><div class="gp-name">tron.</div><div class="gp-desc">light cycles &middot; avoid all trails</div></div>
+    </div>
+    <div class="gp-btn" onclick="launchGame('platoon')">
+      <div class="gp-ico" style="background:rgba(124,106,255,.1)">&#x1F3A8;</div>
+      <div class="gp-info"><div class="gp-name">platoon.</div><div class="gp-desc">paint the map &middot; 3 minute round</div></div>
+    </div>
+    <div class="gp-btn" onclick="launchGame('slither')">
+      <div class="gp-ico" style="background:rgba(255,77,109,.1)">&#x1F40D;</div>
+      <div class="gp-info"><div class="gp-name">slither.</div><div class="gp-desc">eat &amp; grow &middot; last snake wins</div></div>
+    </div>
+    <div class="gp-cancel" onclick="closeGamePicker()">cancel</div>
+  </div>
+</div>
+
+<!-- GAME OVERLAY -->
+<div id="game-overlay">
+  <div id="game-hdr">
+    <div id="game-title">game.</div>
+    <div id="game-status">waiting for players...</div>
+    <div id="game-timer"></div>
+  </div>
+  <canvas id="game-canvas"></canvas>
+  <div id="game-ftr">
+    <div id="game-dpad">
+      <div class="gd" id="gd-l" ontouchstart="gInput('left');gVis('gd-l',1)" ontouchend="gVis('gd-l',0)" onclick="gInput('left')">&#x2190;</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div class="gd" id="gd-u" ontouchstart="gInput('up');gVis('gd-u',1)" ontouchend="gVis('gd-u',0)" onclick="gInput('up')">&#x2191;</div>
+        <div class="gd" id="gd-d" ontouchstart="gInput('down');gVis('gd-d',1)" ontouchend="gVis('gd-d',0)" onclick="gInput('down')">&#x2193;</div>
+      </div>
+      <div class="gd" id="gd-r" ontouchstart="gInput('right');gVis('gd-r',1)" ontouchend="gVis('gd-r',0)" onclick="gInput('right')">&#x2192;</div>
+    </div>
+    <div class="game-score" id="game-score"></div>
+    <button class="gleave" onclick="leaveGame()">leave</button>
+  </div>
+</div>
+
 <div id="notif-bar" onclick="dismissNotifBar()">
   <div class="nb-dot"></div>
   <div class="nb-text"><span class="nb-sender" id="nb-sender"></span> <span id="nb-body"></span></div>
@@ -541,7 +631,7 @@ let lastDay   = null;
 let rendered  = new Set();
 const SECRET  = '2012';
 const RK      = 'mesh_rc3'; // recent chats key
-const VERSION = '1.4.3';
+const VERSION = '1.5.2';
 let unread = 0; // unread message counter for tab title
 
 // ── SECRET STATE ────────────────────────────────────────
@@ -685,11 +775,13 @@ function lockUser(name) {
   // track user presence
   if (db) {
     const key = name.toLowerCase().replace(/[.#$\/\[\]]/g,'_');
-    db.ref('meta/users/'+key).set({ name: name, lastSeen: firebase.database.ServerValue.TIMESTAMP });
-    // mark as online now — auto-removed on disconnect
-    const onlineRef = db.ref('meta/online/'+key);
-    onlineRef.set({ name: name, since: firebase.database.ServerValue.TIMESTAMP });
-    onlineRef.onDisconnect().remove();
+    db.ref('meta/users/'+key).set({ name: name, lastSeen: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+    // mark as online now — auto-removed on disconnect (silently fail if rules block)
+    try {
+      const onlineRef = db.ref('meta/online/'+key);
+      onlineRef.set({ name: name, since: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+      onlineRef.onDisconnect().remove();
+    } catch(e) {}
   }
 }
 
@@ -719,7 +811,8 @@ function startChat(path, label, dm, recKey, recDisplay) {
   document.getElementById('mi').className = dm ? 'dm' : '';
   document.getElementById('sbtn').className = 'sbtn'+(dm?' dm':'');
   // call button visible in both DMs and rooms
-  document.getElementById('call-btn').className = 'ibtn dm-active';
+  document.getElementById('call-btn').style.display = 'inline-block';
+  document.getElementById('game-menu-btn').classList.add('active');
 
   // URL
   try {
@@ -917,7 +1010,7 @@ function linkify(text) {
 
 // ── RENDER MESSAGE ────────────────────────────────────────────
 function addMsg(data, notify) {
-  if (!data || (!data.text && !data.dataUrl)) return;
+  if (!data || (!data.text && !data.dataUrl && data.type !== 'game-invite')) return;
   if (rendered.has(data.k)) return;
   rendered.add(data.k);
 
@@ -954,7 +1047,20 @@ function addMsg(data, notify) {
   meta.textContent = (isMe ? 'you' : data.user) + ' · ' + time;
   wrap.appendChild(meta);
 
-  if (data.type === 'image') {
+  if (data.type === 'game-invite') {
+    const GDESC = {tron:'light cycles — avoid all trails',platoon:'paint the map — 3 min round',slither:'eat & grow — last snake wins'};
+    const card = document.createElement('div');
+    card.className = 'msg-game';
+    const nm = document.createElement('div'); nm.className='msg-game-name'; nm.textContent=(data.gameType||'game')+'.'; card.appendChild(nm);
+    const ds = document.createElement('div'); ds.className='msg-game-desc'; ds.textContent=GDESC[data.gameType]||''; card.appendChild(ds);
+    if (!isMe) {
+      const btn = document.createElement('button');
+      btn.className = 'join-game-btn'; btn.textContent = 'join game';
+      btn.onclick = () => { btn.disabled=true; btn.textContent='joining...'; joinGame(data.gameId, data.gameType, false); };
+      card.appendChild(btn);
+    }
+    wrap.appendChild(card);
+  } else if (data.type === 'image') {
     const img = document.createElement('img');
     img.className = 'mimg';
     img.src       = data.dataUrl;
@@ -1070,7 +1176,8 @@ function leaveRoom() {
   try { document.getElementById('msgs').classList.remove('edit-mode'); } catch(e){}
   try { document.getElementById('edit-btn').classList.remove('edit-on'); } catch(e){}
   try { document.getElementById('cdot').classList.remove('on'); } catch(e){}
-  try { document.getElementById('call-btn').className='ibtn'; } catch(e){}
+  try { document.getElementById('call-btn').style.display='none'; } catch(e){}
+  try { document.getElementById('game-menu-btn').classList.remove('active'); } catch(e){}
   try { clearImg(); } catch(e){}
   try { hideErr(); } catch(e){}
   try { unread=0; document.title='mesh. chat'; dismissNotifBar(); } catch(e){}
@@ -1099,6 +1206,22 @@ function openCallPicker() {
   document.getElementById('call-picker').classList.add('on');
 }
 function closeCallPicker() { document.getElementById('call-picker').classList.remove('on'); }
+
+function toggleAttach() {
+  const menu = document.getElementById('attach-menu');
+  menu.classList.toggle('on');
+}
+function closeAttach() {
+  document.getElementById('attach-menu').classList.remove('on');
+}
+function triggerFilePick() {
+  closeAttach();
+  document.getElementById('img-pick').click();
+}
+function openGamePickerFromMenu() {
+  closeAttach();
+  openGamePicker();
+}
 
 async function startCall(type) {
   closeCallPicker();
@@ -1388,7 +1511,356 @@ function updateBannerCallType(parts) {
 
 
 
-// ── RECENT CHATS ──────────────────────────────────────────────
+// ── GAMES ─────────────────────────────────────────────────────
+const GC = 36, GR = 24; // grid cols x rows
+const GCOLORS = ['#ff4d6d','#4d94ff','#00e5a0','#ffd700','#a855f7','#ff8c00'];
+const GTICK = 160; // ms per game tick
+let G = null; // active game
+
+function openGamePicker()  { if(!ref){toast('join a chat first');return;} if(G){toast('already in a game');return;} document.getElementById('game-picker').classList.add('on'); }
+function closeGamePicker() { document.getElementById('game-picker').classList.remove('on'); }
+function gInput(dir)       { if(!G)return; G.dir=dir; G.ref.child('inputs/'+G.mk).set({dir,t:firebase.database.ServerValue.TIMESTAMP}); }
+function gVis(id,on)       { const el=document.getElementById(id); if(el) el.classList.toggle('pressed',!!on); }
+
+async function launchGame(type) {
+  closeGamePicker();
+  if (G) return;
+  if (!ref) { toast('join a chat first'); return; }
+  const gameId = db.ref('games').push().key;
+  // Post invite card to chat
+  ref.push({ user:ME, type:'game-invite', gameType:type, gameId, time:firebase.database.ServerValue.TIMESTAMP });
+  await joinGame(gameId, type, true);
+}
+
+async function joinGame(gameId, type, isHost) {
+  if (G) { toast('finish your current game first'); return; }
+  const mk = myCallKey();
+  const gameRef = db.ref('games/'+gameId);
+
+  // Pick a color based on join order
+  const pSnap = await gameRef.child('players').once('value');
+  const existingPlayers = pSnap.val() || {};
+  const ci = Object.keys(existingPlayers).length % GCOLORS.length;
+  const color = GCOLORS[ci];
+
+  await gameRef.child('players/'+mk).set({ name:ME, color, ci, t:firebase.database.ServerValue.TIMESTAMP });
+  gameRef.child('players/'+mk).onDisconnect().remove();
+
+  const canvas = document.getElementById('game-canvas');
+  G = { id:gameId, type, ref:gameRef, unsubs:[], isHost, mk, color, ci, dir:'right', state:null, canvas, ctx:canvas.getContext('2d'), loop:null };
+
+  document.getElementById('game-title').textContent = type+'.';
+  document.getElementById('game-status').textContent = 'waiting for players...';
+  document.getElementById('game-timer').textContent = '';
+  document.getElementById('game-score').textContent = '';
+  document.getElementById('game-overlay').classList.add('on');
+
+  // Resize canvas to fill overlay
+  setTimeout(() => {
+    const ov = document.getElementById('game-overlay');
+    const hdr = document.getElementById('game-hdr');
+    const ftr = document.getElementById('game-ftr');
+    canvas.width  = ov.clientWidth;
+    canvas.height = ov.clientHeight - hdr.offsetHeight - ftr.offsetHeight;
+    if (G && G.state) renderGame(G.state);
+  }, 60);
+
+  // Listen to state updates from host
+  const stUn = gameRef.child('state').on('value', snap => {
+    if (!G || !snap.val()) return;
+    G.state = snap.val();
+    renderGame(G.state);
+  });
+  G.unsubs.push(() => gameRef.child('state').off('value', stUn));
+
+  // Watch player roster
+  const plUn = gameRef.child('players').on('value', snap => {
+    if (!G) return;
+    const ps = snap.val() || {};
+    document.getElementById('game-status').textContent = Object.values(ps).map(p=>p.name).join(', ');
+  });
+  G.unsubs.push(() => gameRef.child('players').off('value', plUn));
+
+  if (isHost) {
+    // Wipe stale game data, wait 3s for others to join, then start
+    await gameRef.child('inputs').remove().catch(()=>{});
+    await gameRef.child('state').remove().catch(()=>{});
+    await gameRef.child('type').set(type).catch(()=>{});
+    setTimeout(hostStartGame, 3000);
+  }
+}
+
+async function hostStartGame() {
+  if (!G || !G.isHost) return;
+  const snap = await G.ref.child('players').once('value');
+  const players = snap.val() || {};
+  let state;
+  if (G.type==='tron')    state = initTron(players);
+  else if(G.type==='platoon') state = initPlatoon(players);
+  else                    state = initSlither(players);
+  G.state = state;
+  await G.ref.child('state').set(state);
+  G.loop = setInterval(hostTick, GTICK);
+}
+
+async function hostTick() {
+  if (!G || !G.isHost || !G.state || G.state.status==='over') {
+    clearInterval(G && G.loop); return;
+  }
+  const iSnap = await G.ref.child('inputs').once('value');
+  const inputs = iSnap.val() || {};
+  let ns;
+  if (G.type==='tron')        ns = tickTron(G.state, inputs);
+  else if(G.type==='platoon') ns = tickPlatoon(G.state, inputs);
+  else                        ns = tickSlither(G.state, inputs);
+  G.state = ns;
+  await G.ref.child('state').set(ns);
+  if (ns.status==='over') clearInterval(G.loop);
+}
+
+function leaveGame() {
+  if (!G) return;
+  clearInterval(G.loop);
+  G.unsubs.forEach(f=>{try{f();}catch(e){}});
+  G.ref.child('players/'+G.mk).remove().catch(()=>{});
+  G = null;
+  document.getElementById('game-overlay').classList.remove('on');
+}
+
+// ── TRON ──────────────────────────────────────────────────────
+const STARTS = [{x:4,y:12,d:'right'},{x:31,y:11,d:'left'},{x:18,y:3,d:'down'},{x:18,y:20,d:'up'},{x:4,y:3,d:'right'},{x:31,y:20,d:'left'}];
+const OPP = {up:'down',down:'up',left:'right',right:'left'};
+const MV  = {right:[1,0],left:[-1,0],up:[0,-1],down:[0,1]};
+
+function initTron(players) {
+  const ks = Object.keys(players);
+  const state = { tick:0, status:'playing', winner:'', players:{} };
+  ks.forEach((k,i) => {
+    const s = STARTS[i % STARTS.length];
+    state.players[k] = { x:s.x, y:s.y, dir:s.d, alive:true, trail:s.x+','+s.y, color:players[k].color, name:players[k].name };
+  });
+  return state;
+}
+
+function tickTron(state, inputs) {
+  const ns = JSON.parse(JSON.stringify(state));
+  ns.tick++;
+  // Apply direction inputs (no 180 turns)
+  Object.entries(inputs).forEach(([k,inp]) => {
+    if (ns.players[k]?.alive && inp?.dir && OPP[ns.players[k].dir] !== inp.dir) ns.players[k].dir = inp.dir;
+  });
+  // Build trail set
+  const trails = new Set();
+  Object.values(ns.players).forEach(p => { if(p.trail) p.trail.split('|').forEach(c=>trails.add(c)); });
+  // Move
+  const heads = {};
+  Object.entries(ns.players).forEach(([k,p]) => {
+    if (!p.alive) return;
+    const [dx,dy] = MV[p.dir];
+    const nx=p.x+dx, ny=p.y+dy;
+    if (nx<0||nx>=GC||ny<0||ny>=GR||trails.has(nx+','+ny)) { p.alive=false; return; }
+    heads[nx+','+ny] = (heads[nx+','+ny]||[]).concat(k);
+  });
+  // Head-on collision
+  Object.entries(heads).forEach(([cell,ks]) => { if(ks.length>1) ks.forEach(k=>ns.players[k].alive=false); });
+  // Commit moves
+  Object.entries(ns.players).forEach(([k,p]) => {
+    if (!p.alive) return;
+    const [dx,dy] = MV[p.dir];
+    const cell = (p.x+dx)+','+(p.y+dy);
+    if (heads[cell]?.length === 1) { p.x+=dx; p.y+=dy; p.trail += '|'+cell; }
+  });
+  const alive = Object.values(ns.players).filter(p=>p.alive);
+  if (alive.length <= 1) { ns.status='over'; ns.winner = alive.length?alive[0].name:'draw'; }
+  return ns;
+}
+
+// ── PLATOON ───────────────────────────────────────────────────
+function initPlatoon(players) {
+  const ks = Object.keys(players);
+  const paint = Array(GC*GR).fill(-1);
+  const state = { tick:0, status:'playing', timeLeft:180, winner:'', players:{}, paint };
+  ks.forEach((k,i) => {
+    const s = STARTS[i % STARTS.length];
+    state.players[k] = { x:s.x, y:s.y, dir:s.d, ci:players[k].ci||i, color:players[k].color, name:players[k].name };
+    paint[s.y*GC+s.x] = players[k].ci||i;
+  });
+  return state;
+}
+
+function tickPlatoon(state, inputs) {
+  const ns = JSON.parse(JSON.stringify(state));
+  ns.tick++;
+  ns.timeLeft = Math.max(0, ns.timeLeft - GTICK/1000);
+  Object.entries(ns.players).forEach(([k,p]) => {
+    const inp = inputs[k];
+    if (inp?.dir && OPP[p.dir]!==inp.dir) p.dir = inp.dir;
+    const [dx,dy] = MV[p.dir];
+    const nx=p.x+dx, ny=p.y+dy;
+    if (nx>=0&&nx<GC&&ny>=0&&ny<GR) { p.x=nx; p.y=ny; }
+    else { // bounce
+      if(dx!==0) p.dir=p.dir==='right'?'left':'right';
+      if(dy!==0) p.dir=p.dir==='down'?'up':'down';
+    }
+    ns.paint[p.y*GC+p.x] = p.ci;
+  });
+  const unpainted = ns.paint.filter(v=>v<0).length;
+  if (ns.timeLeft<=0 || unpainted===0) {
+    ns.status='over';
+    const scores = {};
+    ns.paint.forEach(ci=>{ if(ci>=0) scores[ci]=(scores[ci]||0)+1; });
+    let best=-1, bestCi=-1;
+    Object.entries(scores).forEach(([ci,sc])=>{ if(sc>best){best=sc;bestCi=Number(ci);} });
+    const wp = Object.values(ns.players).find(p=>p.ci===bestCi);
+    ns.winner = wp ? wp.name : 'draw';
+  }
+  return ns;
+}
+
+// ── SLITHER ───────────────────────────────────────────────────
+function initSlither(players) {
+  const ks = Object.keys(players);
+  const food = [];
+  const state = { tick:0, status:'playing', winner:'', players:{}, food };
+  ks.forEach((k,i) => {
+    const s = STARTS[i % STARTS.length];
+    state.players[k] = { segs:[{x:s.x,y:s.y}], dir:s.d, alive:true, score:1, color:players[k].color, name:players[k].name };
+  });
+  spawnFood(state, 10);
+  return state;
+}
+
+function spawnFood(state, target) {
+  const occ = new Set();
+  Object.values(state.players).forEach(p=>p.segs.forEach(s=>occ.add(s.x+','+s.y)));
+  state.food.forEach(f=>occ.add(f.x+','+f.y));
+  let tries=0;
+  while(state.food.length<target&&tries++<300) {
+    const x=Math.floor(Math.random()*GC), y=Math.floor(Math.random()*GR);
+    if(!occ.has(x+','+y)){occ.add(x+','+y);state.food.push({x,y});}
+  }
+}
+
+function tickSlither(state, inputs) {
+  const ns = JSON.parse(JSON.stringify(state));
+  ns.tick++;
+  // Apply inputs
+  Object.entries(inputs).forEach(([k,inp]) => {
+    if(ns.players[k]?.alive&&inp?.dir&&OPP[ns.players[k].dir]!==inp.dir) ns.players[k].dir=inp.dir;
+  });
+  // Build occupied (exclude tails which will move)
+  const occ = new Set();
+  Object.values(ns.players).forEach(p=>{ if(p.alive) p.segs.forEach(s=>occ.add(s.x+','+s.y)); });
+  // Move each snake
+  Object.values(ns.players).forEach(p => {
+    if(!p.alive) return;
+    const [dx,dy]=MV[p.dir];
+    const hx=p.segs[0].x+dx, hy=p.segs[0].y+dy;
+    if(hx<0||hx>=GC||hy<0||hy>=GR){p.alive=false;return;}
+    const cell=hx+','+hy;
+    // Remove own tail from occ temporarily (tail will move unless eating)
+    const tail=p.segs[p.segs.length-1];
+    const tailCell=tail.x+','+tail.y;
+    occ.delete(tailCell);
+    if(occ.has(cell)){p.alive=false;return;}
+    const fi=ns.food.findIndex(f=>f.x===hx&&f.y===hy);
+    if(fi>=0){ ns.food.splice(fi,1); p.score++; p.segs=[{x:hx,y:hy},...p.segs]; }
+    else { p.segs=[{x:hx,y:hy},...p.segs.slice(0,-1)]; }
+    occ.add(cell);
+  });
+  if(ns.food.length<8) spawnFood(ns,8);
+  const alive=Object.values(ns.players).filter(p=>p.alive);
+  if(alive.length<=1&&Object.keys(ns.players).length>1){
+    ns.status='over';
+    ns.winner=alive.length?alive[0].name:Object.values(ns.players).reduce((a,b)=>a.score>b.score?a:b).name;
+  }
+  return ns;
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function renderGame(state) {
+  if(!G||!state) return;
+  const {canvas,ctx,type}=G;
+  const cw=canvas.width, ch=canvas.height;
+  if(!cw||!ch) return;
+  const cs=Math.floor(Math.min(cw/GC, ch/GR));
+  const ox=Math.floor((cw-cs*GC)/2), oy=Math.floor((ch-cs*GR)/2);
+
+  ctx.fillStyle='#0b0b0e'; ctx.fillRect(0,0,cw,ch);
+
+  if(type==='tron')         renderTron(ctx,state,cs,ox,oy);
+  else if(type==='platoon') renderPlatoon(ctx,state,cs,ox,oy);
+  else                      renderSlither(ctx,state,cs,ox,oy);
+
+  if(state.status==='over') {
+    ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(0,0,cw,ch);
+    ctx.textAlign='center';
+    ctx.fillStyle='#fff'; ctx.font='bold '+Math.min(36,cs*2.2)+'px Syne,sans-serif';
+    ctx.fillText(state.winner==='draw'?'draw!':state.winner+' wins!', cw/2, ch/2-cs*0.5);
+    ctx.fillStyle='#555'; ctx.font=Math.min(16,cs)+'px JetBrains Mono,monospace';
+    ctx.fillText('press leave to exit', cw/2, ch/2+cs*1.8);
+  }
+}
+
+function renderTron(ctx,s,cs,ox,oy) {
+  ctx.fillStyle='#111'; ctx.fillRect(ox,oy,GC*cs,GR*cs);
+  ctx.strokeStyle='#181818'; ctx.lineWidth=.5;
+  for(let x=0;x<=GC;x++){ctx.beginPath();ctx.moveTo(ox+x*cs,oy);ctx.lineTo(ox+x*cs,oy+GR*cs);ctx.stroke();}
+  for(let y=0;y<=GR;y++){ctx.beginPath();ctx.moveTo(ox,oy+y*cs);ctx.lineTo(ox+GC*cs,oy+y*cs);ctx.stroke();}
+  Object.values(s.players).forEach(p => {
+    if(!p.trail) return;
+    ctx.fillStyle=p.color+'44';
+    p.trail.split('|').forEach(cell=>{
+      const [cx,cy]=cell.split(',').map(Number);
+      ctx.fillRect(ox+cx*cs+1,oy+cy*cs+1,cs-2,cs-2);
+    });
+    if(p.alive){
+      ctx.shadowColor=p.color; ctx.shadowBlur=cs*1.5; ctx.fillStyle=p.color;
+      ctx.fillRect(ox+p.x*cs,oy+p.y*cs,cs,cs);
+      ctx.shadowBlur=0;
+    }
+  });
+  document.getElementById('game-score').textContent = Object.values(s.players).map(p=>(p.alive?'':'✕')+p.name).join('  ');
+}
+
+function renderPlatoon(ctx,s,cs,ox,oy) {
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(ox,oy,GC*cs,GR*cs);
+  s.paint.forEach((ci,idx)=>{
+    if(ci<0) return;
+    const x=idx%GC, y=Math.floor(idx/GC);
+    ctx.fillStyle=GCOLORS[ci]+'aa'; ctx.fillRect(ox+x*cs,oy+y*cs,cs,cs);
+  });
+  Object.values(s.players).forEach(p=>{
+    ctx.fillStyle=p.color;
+    ctx.shadowColor=p.color; ctx.shadowBlur=cs*1.2;
+    ctx.beginPath(); ctx.arc(ox+p.x*cs+cs/2,oy+p.y*cs+cs/2,cs*.44,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  });
+  const tl=Math.ceil(s.timeLeft);
+  document.getElementById('game-timer').textContent=Math.floor(tl/60)+':'+(String(tl%60).padStart(2,'0'));
+  const tot=s.paint.length, cov=s.paint.filter(v=>v>=0).length;
+  document.getElementById('game-score').textContent=Math.round(cov/tot*100)+'% painted';
+}
+
+function renderSlither(ctx,s,cs,ox,oy) {
+  ctx.fillStyle='#111'; ctx.fillRect(ox,oy,GC*cs,GR*cs);
+  ctx.strokeStyle='#181818'; ctx.lineWidth=.5;
+  for(let x=0;x<=GC;x++){ctx.beginPath();ctx.moveTo(ox+x*cs,oy);ctx.lineTo(ox+x*cs,oy+GR*cs);ctx.stroke();}
+  for(let y=0;y<=GR;y++){ctx.beginPath();ctx.moveTo(ox,oy+y*cs);ctx.lineTo(ox+GC*cs,oy+y*cs);ctx.stroke();}
+  (s.food||[]).forEach(f=>{
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ox+f.x*cs+cs/2,oy+f.y*cs+cs/2,cs*.28,0,Math.PI*2); ctx.fill();
+  });
+  Object.values(s.players).forEach(p=>{
+    if(!p.segs?.length) return;
+    p.segs.forEach((sg,i)=>{
+      ctx.fillStyle=i===0?p.color:p.color+'88';
+      ctx.beginPath(); ctx.arc(ox+sg.x*cs+cs/2,oy+sg.y*cs+cs/2,i===0?cs*.46:cs*.36,0,Math.PI*2); ctx.fill();
+    });
+  });
+  document.getElementById('game-score').textContent=Object.values(s.players).map(p=>(p.alive?'':'✕')+p.name+' '+p.score).join('  ');
+}
+
+
 function getRecent() {
   try { return JSON.parse(localStorage.getItem(RK)||'[]'); } catch(e){ return []; }
 }
@@ -1734,12 +2206,23 @@ function toggleBan(key, name, currentlyBanned, btn, row, info) {
 
 // ── KEYBOARD ──────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); closePanel(); return; }
+  if (G) { // game active — intercept arrow keys
+    const map = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+    if (map[e.key]) { e.preventDefault(); gInput(map[e.key]); return; }
+  }
+  if (e.key==='Escape') { closeKP(); closeNM(); closeLB(); closePanel(); closeGamePicker(); closeAttach(); if(G)leaveGame(); return; }
   if (e.key!=='Enter') return;
   if (document.getElementById('nm-modal').classList.contains('on'))    { saveName(); return; }
   if (document.getElementById('chat-screen').classList.contains('active')) { send(); return; }
   if (document.getElementById('join-screen').classList.contains('active')) {
     document.getElementById('p-dm').classList.contains('on') ? joinDM() : joinRoom();
+  }
+});
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('attach-btn');
+  const menu = document.getElementById('attach-menu');
+  if (menu && menu.classList.contains('on') && !wrap?.contains(e.target) && !menu.contains(e.target)) {
+    menu.classList.remove('on');
   }
 });
 document.addEventListener('input', e => { if(e.target.id==='mi') updateCI(e.target.value); });
